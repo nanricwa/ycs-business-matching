@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
-import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save } from 'lucide-react';
+import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save, RefreshCw } from 'lucide-react';
 import { Footer } from './src/Footer';
 import {
   getStoredToken,
@@ -104,6 +104,7 @@ const BusinessMatchingApp: React.FC = () => {
   const [membersLoading, setMembersLoading] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string>('');
   const [adminUsersList, setAdminUsersList] = useState<UserProfile[]>([]);
+  const [adminRefreshKey, setAdminRefreshKey] = useState<number>(0);
   const [resetToken, setResetToken] = useState<string>('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState<boolean>(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState<boolean>(false);
@@ -180,7 +181,7 @@ const BusinessMatchingApp: React.FC = () => {
         if (r.ok && r.users) setAdminUsersList(r.users as UserProfile[]);
       });
     }
-  }, [currentView, isAdmin]);
+  }, [currentView, isAdmin, adminRefreshKey]);
 
   // パスワード再設定リンクから遷移した場合（#reset-password?token=xxx）
   useEffect(() => {
@@ -2279,7 +2280,11 @@ const BusinessMatchingApp: React.FC = () => {
               <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-lg">
                 <TrendingUp size={32} className="mb-2" />
                 <p className="text-sm opacity-90">今月の新規登録</p>
-                <p className="text-4xl font-bold">2</p>
+                <p className="text-4xl font-bold">{(() => {
+                  const now = new Date();
+                  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  return adminUsersList.filter((u) => u.registeredAt?.startsWith(ym)).length;
+                })()}</p>
               </div>
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg">
                 <MessageCircle size={32} className="mb-2" />
@@ -2289,6 +2294,13 @@ const BusinessMatchingApp: React.FC = () => {
             </div>
 
             <div className="mb-6 flex gap-4">
+              <button
+                onClick={() => setAdminRefreshKey((k) => k + 1)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <RefreshCw size={20} />
+                更新
+              </button>
               <button
                 onClick={downloadCSV}
                 className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
