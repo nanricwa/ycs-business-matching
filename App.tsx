@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
-import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save } from 'lucide-react';
+import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save, RefreshCw, Trash2 } from 'lucide-react';
 import { Footer } from './src/Footer';
 import {
   getStoredToken,
@@ -104,6 +104,9 @@ const BusinessMatchingApp: React.FC = () => {
   const [membersLoading, setMembersLoading] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string>('');
   const [adminUsersList, setAdminUsersList] = useState<UserProfile[]>([]);
+  const [adminRefreshKey, setAdminRefreshKey] = useState<number>(0);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
   const [resetToken, setResetToken] = useState<string>('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState<boolean>(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState<boolean>(false);
@@ -180,7 +183,7 @@ const BusinessMatchingApp: React.FC = () => {
         if (r.ok && r.users) setAdminUsersList(r.users as UserProfile[]);
       });
     }
-  }, [currentView, isAdmin]);
+  }, [currentView, isAdmin, adminRefreshKey]);
 
   // パスワード再設定リンクから遷移した場合（#reset-password?token=xxx）
   useEffect(() => {
@@ -352,6 +355,45 @@ const BusinessMatchingApp: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedUserIds).filter((id) => id !== currentUserProfile?.id);
+    if (ids.length === 0) {
+      alert('削除対象のユーザーを選択してください（自分自身は除外されます）');
+      return;
+    }
+    const names = adminUsersList
+      .filter((u) => ids.includes(u.id))
+      .map((u) => `${u.name}（${u.email}）`)
+      .join('\n');
+    if (!confirm(`以下の ${ids.length} 名を削除しますか？\nこの操作は取り消せません。\n\n${names}`)) return;
+    setBulkDeleting(true);
+    const errors: string[] = [];
+    const deleted: number[] = [];
+    for (const id of ids) {
+      try {
+        const res = await apiDeleteUser(id);
+        if (res.ok && res.success) {
+          deleted.push(id);
+        } else {
+          const user = adminUsersList.find((u) => u.id === id);
+          errors.push(`${user?.name || `ID:${id}`}: ${res.error || '削除失敗'}`);
+        }
+      } catch {
+        errors.push(`ID:${id}: 通信エラー`);
+      }
+    }
+    if (deleted.length > 0) {
+      setAdminUsersList((prev) => prev.filter((u) => !deleted.includes(u.id)));
+    }
+    setSelectedUserIds(new Set());
+    setBulkDeleting(false);
+    if (errors.length > 0) {
+      alert(`${deleted.length} 件削除しました。\n以下は失敗しました:\n${errors.join('\n')}`);
+    } else {
+      alert(`${deleted.length} 件を削除しました。`);
+    }
   };
 
   const renderStars = (score?: number) => {
@@ -2279,7 +2321,11 @@ const BusinessMatchingApp: React.FC = () => {
               <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-lg">
                 <TrendingUp size={32} className="mb-2" />
                 <p className="text-sm opacity-90">今月の新規登録</p>
-                <p className="text-4xl font-bold">2</p>
+                <p className="text-4xl font-bold">{(() => {
+                  const now = new Date();
+                  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  return adminUsersList.filter((u) => u.registeredAt?.startsWith(ym)).length;
+                })()}</p>
               </div>
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg">
                 <MessageCircle size={32} className="mb-2" />
@@ -2289,6 +2335,13 @@ const BusinessMatchingApp: React.FC = () => {
             </div>
 
             <div className="mb-6 flex gap-4">
+              <button
+                onClick={() => setAdminRefreshKey((k) => k + 1)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <RefreshCw size={20} />
+                更新
+              </button>
               <button
                 onClick={downloadCSV}
                 className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
@@ -2306,11 +2359,37 @@ const BusinessMatchingApp: React.FC = () => {
             </div>
 
             <div className="border-t pt-6">
-              <h3 className="text-xl font-bold mb-4">登録ユーザー一覧</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">登録ユーザー一覧</h3>
+                {selectedUserIds.size > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleting}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={18} />
+                    {bulkDeleting ? '削除中...' : `選択した ${selectedUserIds.size} 件を一括削除`}
+                  </button>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-100">
                     <tr>
+                      <th className="px-3 py-3 text-center text-sm font-semibold w-10">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-blue-600 cursor-pointer"
+                          checked={adminUsersList.length > 0 && adminUsersList.every((u) => selectedUserIds.has(u.id))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedUserIds(new Set(adminUsersList.map((u) => u.id)));
+                            } else {
+                              setSelectedUserIds(new Set());
+                            }
+                          }}
+                        />
+                      </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">ID</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">名前</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">メール</th>
@@ -2323,7 +2402,28 @@ const BusinessMatchingApp: React.FC = () => {
                   </thead>
                   <tbody>
                     {adminUsersList.map((user, index) => (
-                      <tr key={user.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <tr
+                        key={user.id}
+                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${selectedUserIds.has(user.id) ? 'ring-1 ring-inset ring-blue-300 bg-blue-50' : ''}`}
+                      >
+                        <td className="px-3 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-blue-600 cursor-pointer"
+                            checked={selectedUserIds.has(user.id)}
+                            onChange={(e) => {
+                              setSelectedUserIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) {
+                                  next.add(user.id);
+                                } else {
+                                  next.delete(user.id);
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
                         <td className="px-4 py-3 text-sm">{user.id}</td>
                         <td className="px-4 py-3 text-sm font-semibold">{user.name}</td>
                         <td className="px-4 py-3 text-sm">{user.email}</td>
@@ -2347,6 +2447,7 @@ const BusinessMatchingApp: React.FC = () => {
                               apiDeleteUser(user.id).then((res) => {
                                 if (res.ok && res.success) {
                                   setAdminUsersList((prev) => prev.filter((u) => u.id !== user.id));
+                                  setSelectedUserIds((prev) => { const next = new Set(prev); next.delete(user.id); return next; });
                                 } else {
                                   alert(res.error || '削除に失敗しました');
                                 }
