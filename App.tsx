@@ -2348,7 +2348,7 @@ const BusinessMatchingApp: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <Shield className="text-yellow-600" size={32} />
-                <h2 className="text-3xl font-bold">管理者ダッシュボード</h2>
+                <h2 className="text-3xl font-bold text-yellow-600">管理者ダッシュボード</h2>
               </div>
               <button 
                 onClick={handleLogout}
@@ -2391,21 +2391,21 @@ const BusinessMatchingApp: React.FC = () => {
             <div className="mb-6 flex gap-4">
               <button
                 onClick={() => setAdminRefreshKey((k) => k + 1)}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
               >
                 <RefreshCw size={20} />
                 更新
               </button>
               <button
                 onClick={downloadCSV}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                className="bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
               >
                 <Download size={20} />
                 登録者データをCSVでダウンロード
               </button>
               <button
                 onClick={() => setCurrentView('admin-settings')}
-                className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                className="bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
               >
                 <Shield size={20} />
                 管理者設定
