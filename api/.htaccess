@@ -13,6 +13,7 @@ RewriteRule ^users/?$ users.php [L,QSA]
 RewriteRule ^members/?$ members.php [L,QSA]
 RewriteRule ^delete-user/?$ delete-user.php [L,QSA]
 RewriteRule ^update-role/?$ update-role.php [L,QSA]
+RewriteRule ^notification-settings/?$ notification-settings.php [L,QSA]
 </IfModule>
 
 # CGI/FastCGI 環境でも Authorization ヘッダーを渡す

@@ -92,29 +92,33 @@ SQL);
     $userId = (int) $pdo->lastInsertId();
     $name = (string) ($body['name'] ?? '');
 
-    // 管理者へ新規登録通知メール
+    // メール通知設定をDBから取得
+    $ns = get_notification_settings($pdo);
     $configFile = __DIR__ . '/config.php';
     if (is_file($configFile)) {
         $config = require $configFile;
         $adminEmail = trim((string) ($config['ADMIN_EMAIL'] ?? ''));
         $siteUrl = rtrim((string) ($config['SITE_URL'] ?? ''), '/');
-        if ($adminEmail !== '') {
-            $subject = '[YCSマッチング] 新規登録がありました';
-            $bodyText = "新規登録がありました。\n\n";
-            $bodyText .= "名前: " . $name . "\n";
-            $bodyText .= "メールアドレス: " . $email . "\n";
-            $bodyText .= "登録日時: " . $registeredAt . "\n";
-            $bodyText .= "\n--\nYCS Business Matching";
+        $signature = "--\nYCS Business Matching";
+        $templateVars = [
+            'name'      => $name,
+            'email'     => $email,
+            'date'      => $registeredAt,
+            'login_url' => $siteUrl,
+            'signature' => $signature,
+        ];
+
+        // 管理者へ新規登録通知メール
+        if ($adminEmail !== '' && ($ns['admin_notify_enabled'] ?? '1') === '1') {
+            $subject = render_template($ns['admin_notify_subject'], $templateVars);
+            $bodyText = render_template($ns['admin_notify_body'], $templateVars);
             send_mail($adminEmail, $subject, $bodyText);
         }
-        // 登録者へ確認メール（SITE_URL を config から取得）
-        if ($email !== '' && $siteUrl !== '') {
-            $subject = '[YCSマッチング] 登録が完了しました';
-            $userBody = ($name !== '' ? $name . " 様\n\n" : '') . "YCSマッチングプラットフォームへの登録が完了しました。\n\n";
-            $userBody .= "このメールアドレスと登録時にお決めいただいたパスワードで、以下のURLからログインできます。\n\n";
-            $userBody .= "ログインURL: " . $siteUrl . "\n\n";
-            $userBody .= "--\nYCS Business Matching";
-            send_mail($email, $subject, $userBody);
+        // 登録者へ確認メール
+        if ($email !== '' && $siteUrl !== '' && ($ns['user_welcome_enabled'] ?? '1') === '1') {
+            $subject = render_template($ns['user_welcome_subject'], $templateVars);
+            $bodyText = render_template($ns['user_welcome_body'], $templateVars);
+            send_mail($email, $subject, $bodyText);
         }
     }
 

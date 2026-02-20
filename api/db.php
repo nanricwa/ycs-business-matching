@@ -64,3 +64,12 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SQL;
 $pdo->exec($createResetTable);
+
+$createNotificationSettingsTable = <<<'SQL'
+CREATE TABLE IF NOT EXISTS notification_settings (
+  setting_key VARCHAR(128) NOT NULL PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SQL;
+$pdo->exec($createNotificationSettingsTable);

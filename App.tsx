@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
-import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save, RefreshCw, Trash2 } from 'lucide-react';
+import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save, RefreshCw, Trash2, Mail, Bell, BellOff, Eye, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { Footer } from './src/Footer';
 import {
   getStoredToken,
@@ -13,8 +13,11 @@ import {
   apiUpdateRole,
   apiForgotPassword,
   apiResetPassword,
+  apiGetNotificationSettings,
+  apiSaveNotificationSettings,
   type UserProfile as ApiUserProfile,
   type RegisterBody,
+  type NotificationSettings,
 } from './src/apiClient';
 
 interface UserProfile {
@@ -113,6 +116,12 @@ const BusinessMatchingApp: React.FC = () => {
   const [resetToken, setResetToken] = useState<string>('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState<boolean>(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState<boolean>(false);
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings | null>(null);
+  const [notifLoading, setNotifLoading] = useState<boolean>(false);
+  const [notifSaving, setNotifSaving] = useState<boolean>(false);
+  const [notifSaveMsg, setNotifSaveMsg] = useState<string>('');
+  const [notifExpandedSection, setNotifExpandedSection] = useState<string>('admin_notify');
+  const [notifPreviewKey, setNotifPreviewKey] = useState<string>('');
 
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     industry: '',
@@ -195,6 +204,19 @@ const BusinessMatchingApp: React.FC = () => {
       });
     }
   }, [currentView, isAdmin, adminRefreshKey]);
+
+  // 管理者設定画面でメール通知設定を読み込む
+  useEffect(() => {
+    if (currentView === 'admin-settings' && isAdmin && getStoredToken()) {
+      setNotifLoading(true);
+      setNotifSaveMsg('');
+      apiGetNotificationSettings().then((r) => {
+        if (r.ok && r.settings) {
+          setNotifSettings(r.settings);
+        }
+      }).finally(() => setNotifLoading(false));
+    }
+  }, [currentView, isAdmin]);
 
   // パスワード再設定リンクから遷移した場合（#reset-password?token=xxx）
   useEffect(() => {
@@ -2537,14 +2559,14 @@ const BusinessMatchingApp: React.FC = () => {
       )}
 
       {currentView === 'admin-settings' && (
-        <div className="max-w-2xl mx-auto p-6">
+        <div className="max-w-3xl mx-auto p-6">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <Shield className="text-yellow-600" size={32} />
                 <h2 className="text-2xl font-bold">管理者設定</h2>
               </div>
-              <button 
+              <button
                 onClick={() => setCurrentView('admin')}
                 className="text-blue-600 hover:text-blue-800 font-semibold"
               >
@@ -2553,11 +2575,265 @@ const BusinessMatchingApp: React.FC = () => {
             </div>
 
             <div className="space-y-6">
+              {/* 管理者ログインについて */}
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
                 <p className="text-sm text-blue-800 font-semibold mb-1">管理者ログインについて</p>
                 <p className="text-xs text-blue-700">
                   管理者はトップの「ログイン」から、role=admin のアカウントでメール・パスワードを入力してログインします。
                 </p>
+              </div>
+
+              {/* メール通知設定セクション */}
+              <div className="border-t pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Mail className="text-yellow-600" size={24} />
+                  <h3 className="text-lg font-bold">メール通知カスタマイズ</h3>
+                </div>
+                <p className="text-xs text-gray-500 mb-4">
+                  各メールの件名・本文テンプレートを編集できます。テンプレート変数: <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code> ユーザー名, <code className="bg-gray-100 px-1 rounded">{'{{email}}'}</code> メールアドレス, <code className="bg-gray-100 px-1 rounded">{'{{date}}'}</code> 日時, <code className="bg-gray-100 px-1 rounded">{'{{login_url}}'}</code> ログインURL, <code className="bg-gray-100 px-1 rounded">{'{{reset_link}}'}</code> リセットリンク, <code className="bg-gray-100 px-1 rounded">{'{{signature}}'}</code> 署名
+                </p>
+
+                {notifLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <RefreshCw className="animate-spin inline-block mr-2" size={20} />
+                    設定を読み込み中...
+                  </div>
+                ) : notifSettings ? (
+                  <div className="space-y-3">
+                    {/* === 管理者通知メール === */}
+                    <div className="border rounded-lg overflow-hidden">
+                      <button
+                        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
+                        onClick={() => setNotifExpandedSection(notifExpandedSection === 'admin_notify' ? '' : 'admin_notify')}
+                      >
+                        <div className="flex items-center gap-2">
+                          {notifSettings.admin_notify_enabled === '1' ? (
+                            <Bell className="text-green-600" size={18} />
+                          ) : (
+                            <BellOff className="text-gray-400" size={18} />
+                          )}
+                          <span className="font-semibold text-sm">管理者への新規登録通知</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${notifSettings.admin_notify_enabled === '1' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {notifSettings.admin_notify_enabled === '1' ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                        {notifExpandedSection === 'admin_notify' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                      {notifExpandedSection === 'admin_notify' && (
+                        <div className="p-4 space-y-3 border-t">
+                          <div className="flex items-center gap-3">
+                            <label className="text-sm font-medium text-gray-700 w-16">送信</label>
+                            <button
+                              onClick={() => setNotifSettings({ ...notifSettings, admin_notify_enabled: notifSettings.admin_notify_enabled === '1' ? '0' : '1' })}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notifSettings.admin_notify_enabled === '1' ? 'bg-green-500' : 'bg-gray-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notifSettings.admin_notify_enabled === '1' ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            <span className="text-xs text-gray-500">{notifSettings.admin_notify_enabled === '1' ? '新規登録時に管理者へメール通知' : '通知OFF'}</span>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">件名</label>
+                            <input
+                              type="text"
+                              value={notifSettings.admin_notify_subject}
+                              onChange={(e) => setNotifSettings({ ...notifSettings, admin_notify_subject: e.target.value })}
+                              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">本文テンプレート</label>
+                            <textarea
+                              value={notifSettings.admin_notify_body}
+                              onChange={(e) => setNotifSettings({ ...notifSettings, admin_notify_body: e.target.value })}
+                              rows={6}
+                              className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400"
+                            />
+                          </div>
+                          <div>
+                            <button
+                              onClick={() => setNotifPreviewKey(notifPreviewKey === 'admin_notify' ? '' : 'admin_notify')}
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              <Eye size={14} />
+                              {notifPreviewKey === 'admin_notify' ? 'プレビューを閉じる' : 'プレビュー'}
+                            </button>
+                            {notifPreviewKey === 'admin_notify' && (
+                              <div className="mt-2 bg-gray-50 border rounded-lg p-3">
+                                <p className="text-xs text-gray-500 mb-1">件名: {notifSettings.admin_notify_subject.replace(/\{\{name\}\}/g, '山田太郎').replace(/\{\{email\}\}/g, 'yamada@example.com').replace(/\{\{date\}\}/g, '2025-02-21')}</p>
+                                <pre className="text-xs whitespace-pre-wrap text-gray-700">{notifSettings.admin_notify_body.replace(/\{\{name\}\}/g, '山田太郎').replace(/\{\{email\}\}/g, 'yamada@example.com').replace(/\{\{date\}\}/g, '2025-02-21').replace(/\{\{signature\}\}/g, '--\nYCS Business Matching')}</pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* === 登録完了メール === */}
+                    <div className="border rounded-lg overflow-hidden">
+                      <button
+                        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
+                        onClick={() => setNotifExpandedSection(notifExpandedSection === 'user_welcome' ? '' : 'user_welcome')}
+                      >
+                        <div className="flex items-center gap-2">
+                          {notifSettings.user_welcome_enabled === '1' ? (
+                            <Bell className="text-green-600" size={18} />
+                          ) : (
+                            <BellOff className="text-gray-400" size={18} />
+                          )}
+                          <span className="font-semibold text-sm">登録者への確認メール</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${notifSettings.user_welcome_enabled === '1' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {notifSettings.user_welcome_enabled === '1' ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                        {notifExpandedSection === 'user_welcome' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                      {notifExpandedSection === 'user_welcome' && (
+                        <div className="p-4 space-y-3 border-t">
+                          <div className="flex items-center gap-3">
+                            <label className="text-sm font-medium text-gray-700 w-16">送信</label>
+                            <button
+                              onClick={() => setNotifSettings({ ...notifSettings, user_welcome_enabled: notifSettings.user_welcome_enabled === '1' ? '0' : '1' })}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notifSettings.user_welcome_enabled === '1' ? 'bg-green-500' : 'bg-gray-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notifSettings.user_welcome_enabled === '1' ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            <span className="text-xs text-gray-500">{notifSettings.user_welcome_enabled === '1' ? '登録完了時に確認メール送信' : '通知OFF'}</span>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">件名</label>
+                            <input
+                              type="text"
+                              value={notifSettings.user_welcome_subject}
+                              onChange={(e) => setNotifSettings({ ...notifSettings, user_welcome_subject: e.target.value })}
+                              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">本文テンプレート</label>
+                            <textarea
+                              value={notifSettings.user_welcome_body}
+                              onChange={(e) => setNotifSettings({ ...notifSettings, user_welcome_body: e.target.value })}
+                              rows={8}
+                              className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400"
+                            />
+                          </div>
+                          <div>
+                            <button
+                              onClick={() => setNotifPreviewKey(notifPreviewKey === 'user_welcome' ? '' : 'user_welcome')}
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              <Eye size={14} />
+                              {notifPreviewKey === 'user_welcome' ? 'プレビューを閉じる' : 'プレビュー'}
+                            </button>
+                            {notifPreviewKey === 'user_welcome' && (
+                              <div className="mt-2 bg-gray-50 border rounded-lg p-3">
+                                <p className="text-xs text-gray-500 mb-1">件名: {notifSettings.user_welcome_subject.replace(/\{\{name\}\}/g, '山田太郎').replace(/\{\{email\}\}/g, 'yamada@example.com').replace(/\{\{date\}\}/g, '2025-02-21')}</p>
+                                <pre className="text-xs whitespace-pre-wrap text-gray-700">{notifSettings.user_welcome_body.replace(/\{\{name\}\}/g, '山田太郎').replace(/\{\{email\}\}/g, 'yamada@example.com').replace(/\{\{date\}\}/g, '2025-02-21').replace(/\{\{login_url\}\}/g, 'https://ycscampaign.com/match').replace(/\{\{signature\}\}/g, '--\nYCS Business Matching')}</pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* === パスワードリセットメール === */}
+                    <div className="border rounded-lg overflow-hidden">
+                      <button
+                        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
+                        onClick={() => setNotifExpandedSection(notifExpandedSection === 'password_reset' ? '' : 'password_reset')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Mail className="text-blue-600" size={18} />
+                          <span className="font-semibold text-sm">パスワードリセットメール</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">常時ON</span>
+                        </div>
+                        {notifExpandedSection === 'password_reset' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                      {notifExpandedSection === 'password_reset' && (
+                        <div className="p-4 space-y-3 border-t">
+                          <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
+                            <p className="text-xs text-blue-700">パスワードリセットメールはセキュリティ上常に送信されます（ON/OFF不可）</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">件名</label>
+                            <input
+                              type="text"
+                              value={notifSettings.password_reset_subject}
+                              onChange={(e) => setNotifSettings({ ...notifSettings, password_reset_subject: e.target.value })}
+                              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">本文テンプレート</label>
+                            <textarea
+                              value={notifSettings.password_reset_body}
+                              onChange={(e) => setNotifSettings({ ...notifSettings, password_reset_body: e.target.value })}
+                              rows={8}
+                              className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400"
+                            />
+                          </div>
+                          <div>
+                            <button
+                              onClick={() => setNotifPreviewKey(notifPreviewKey === 'password_reset' ? '' : 'password_reset')}
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              <Eye size={14} />
+                              {notifPreviewKey === 'password_reset' ? 'プレビューを閉じる' : 'プレビュー'}
+                            </button>
+                            {notifPreviewKey === 'password_reset' && (
+                              <div className="mt-2 bg-gray-50 border rounded-lg p-3">
+                                <p className="text-xs text-gray-500 mb-1">件名: {notifSettings.password_reset_subject.replace(/\{\{email\}\}/g, 'yamada@example.com').replace(/\{\{date\}\}/g, '2025-02-21 14:30')}</p>
+                                <pre className="text-xs whitespace-pre-wrap text-gray-700">{notifSettings.password_reset_body.replace(/\{\{email\}\}/g, 'yamada@example.com').replace(/\{\{date\}\}/g, '2025-02-21 14:30').replace(/\{\{reset_link\}\}/g, 'https://ycscampaign.com/match/#reset-password?token=abc123...').replace(/\{\{signature\}\}/g, '--\nYCS Business Matching')}</pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 保存ボタン */}
+                    <div className="flex items-center gap-4 pt-4 border-t">
+                      <button
+                        onClick={async () => {
+                          if (!notifSettings) return;
+                          setNotifSaving(true);
+                          setNotifSaveMsg('');
+                          try {
+                            const res = await apiSaveNotificationSettings(notifSettings);
+                            if (res.ok && res.success) {
+                              setNotifSaveMsg('保存しました');
+                              setTimeout(() => setNotifSaveMsg(''), 3000);
+                            } else {
+                              setNotifSaveMsg(`保存失敗: ${res.error || 'エラー'}`);
+                            }
+                          } catch (e) {
+                            setNotifSaveMsg(`保存エラー: ${e instanceof Error ? e.message : String(e)}`);
+                          } finally {
+                            setNotifSaving(false);
+                          }
+                        }}
+                        disabled={notifSaving}
+                        className="flex items-center gap-2 px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow disabled:opacity-50 transition"
+                      >
+                        {notifSaving ? (
+                          <><RefreshCw className="animate-spin" size={16} /> 保存中...</>
+                        ) : (
+                          <><Save size={16} /> 設定を保存</>
+                        )}
+                      </button>
+                      {notifSaveMsg && (
+                        <span className={`text-sm font-medium ${notifSaveMsg.startsWith('保存しました') ? 'text-green-600' : 'text-red-600'}`}>
+                          {notifSaveMsg.startsWith('保存しました') && <Check className="inline mr-1" size={16} />}
+                          {notifSaveMsg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    設定の読み込みに失敗しました
+                  </div>
+                )}
               </div>
             </div>
           </div>

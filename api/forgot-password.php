@@ -53,13 +53,18 @@ $stmt->execute([$email, $token, $expiresAt]);
 
 if ($siteUrl !== '') {
     $resetLink = $siteUrl . '/#reset-password?token=' . $token;
-    $subject = '[YCSマッチング] パスワード再設定のご案内';
-    $bodyText = "パスワード再設定のリクエストを受け付けました。\n\n";
-    $bodyText .= "以下のリンクをクリックし、新しいパスワードを設定してください。\n";
-    $bodyText .= "（有効期限: 1時間）\n\n";
-    $bodyText .= $resetLink . "\n\n";
-    $bodyText .= "このメールに心当たりがない場合は、無視してください。\n\n";
-    $bodyText .= "--\nYCS Business Matching";
+    $ns = get_notification_settings($pdo);
+    $signature = "--\nYCS Business Matching";
+    $templateVars = [
+        'name'       => '',
+        'email'      => $email,
+        'date'       => date('Y-m-d H:i'),
+        'reset_link' => $resetLink,
+        'login_url'  => $siteUrl,
+        'signature'  => $signature,
+    ];
+    $subject = render_template($ns['password_reset_subject'], $templateVars);
+    $bodyText = render_template($ns['password_reset_body'], $templateVars);
     send_mail($email, $subject, $bodyText);
 }
 
