@@ -2509,24 +2509,6 @@ const BusinessMatchingApp: React.FC = () => {
                           </button>
                           <button
                             onClick={() => {
-                              const newRole = user.role === 'admin' ? 'user' : 'admin';
-                              const action = newRole === 'admin' ? '管理者に昇格' : '一般ユーザーに降格';
-                              if (!confirm(`${user.name}（${user.email}）を${action}しますか？`)) return;
-                              apiUpdateRole(user.id, newRole).then((res) => {
-                                if (res.ok && res.success) {
-                                  setAdminUsersList((prev) => prev.map((u) => u.id === user.id ? { ...u, role: newRole } : u));
-                                } else {
-                                  alert(res.error || '権限変更に失敗しました');
-                                }
-                              });
-                            }}
-                            disabled={currentUserProfile?.id === user.id}
-                            className={`${user.role === 'admin' ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} font-semibold mr-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            {user.role === 'admin' ? '降格' : '昇格'}
-                          </button>
-                          <button
-                            onClick={() => {
                               if (!confirm(`${user.name}（${user.email}）を退会者として削除しますか？\nこの操作は取り消せません。`)) return;
                               apiDeleteUser(user.id).then((res) => {
                                 if (res.ok && res.success) {
@@ -2591,17 +2573,53 @@ const BusinessMatchingApp: React.FC = () => {
           </button>
 
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                {(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
-                  <img src={(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={selectedUser.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-5xl">{(selectedUser as UserProfile & { image?: string }).image ?? '👤'}</div>
-                )}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                  {(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
+                    <img src={(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={selectedUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-5xl">{(selectedUser as UserProfile & { image?: string }).image ?? '👤'}</div>
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold">{selectedUser.name}</h2>
+                  <p className="text-gray-600">ID: {selectedUser.id} | 登録日: {selectedUser.registeredAt}</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-3xl font-bold">{selectedUser.name}</h2>
-                <p className="text-gray-600">ID: {selectedUser.id} | 登録日: {selectedUser.registeredAt}</p>
+              <div className="flex flex-col items-end gap-2">
+                <label className="text-xs font-semibold text-gray-500">権限</label>
+                <select
+                  value={selectedUser.role || 'user'}
+                  disabled={currentUserProfile?.id === selectedUser.id}
+                  onChange={(e) => {
+                    const newRole = e.target.value as 'admin' | 'user';
+                    const action = newRole === 'admin' ? '管理者に昇格' : '一般ユーザーに降格';
+                    if (!confirm(`${selectedUser.name}（${selectedUser.email}）を${action}しますか？`)) {
+                      e.target.value = selectedUser.role || 'user';
+                      return;
+                    }
+                    apiUpdateRole(selectedUser.id, newRole).then((res) => {
+                      if (res.ok && res.success) {
+                        setSelectedUser({ ...selectedUser, role: newRole });
+                        setAdminUsersList((prev) => prev.map((u) => u.id === selectedUser.id ? { ...u, role: newRole } : u));
+                      } else {
+                        alert(res.error || '権限変更に失敗しました');
+                      }
+                    });
+                  }}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm border-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    selectedUser.role === 'admin'
+                      ? 'border-yellow-400 bg-yellow-50 text-yellow-800'
+                      : 'border-gray-300 bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <option value="user">User（一般）</option>
+                  <option value="admin">Admin（管理者）</option>
+                </select>
+                {currentUserProfile?.id === selectedUser.id && (
+                  <p className="text-xs text-gray-400">自分自身の権限は変更できません</p>
+                )}
               </div>
             </div>
 
