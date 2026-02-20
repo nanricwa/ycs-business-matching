@@ -104,6 +104,40 @@ function send_mail(string $to, string $subject, string $body_plain, string $from
     return @mail($to, $subject, $body_plain, implode("\r\n", $headers));
 }
 
+/**
+ * Authorization ヘッダーを取得する（Apache CGI/FastCGI 環境対応）
+ */
+function get_authorization_header(): string {
+    // 標準
+    if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+        return $_SERVER['HTTP_AUTHORIZATION'];
+    }
+    // Apache mod_rewrite の SetEnvIf / RewriteRule で渡した場合
+    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    }
+    // apache_request_headers() が使える場合
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (isset($headers['Authorization'])) {
+            return $headers['Authorization'];
+        }
+        // キーが小文字になる場合
+        if (isset($headers['authorization'])) {
+            return $headers['authorization'];
+        }
+    }
+    // getallheaders() のフォールバック
+    if (function_exists('getallheaders')) {
+        foreach (getallheaders() as $key => $value) {
+            if (strtolower($key) === 'authorization') {
+                return $value;
+            }
+        }
+    }
+    return '';
+}
+
 function json_headers(): void {
     header('Content-Type: application/json; charset=utf-8');
     header('Access-Control-Allow-Origin: *');
