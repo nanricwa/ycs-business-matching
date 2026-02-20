@@ -2634,7 +2634,7 @@ const BusinessMatchingApp: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-bold mb-3 text-blue-600">基本情報</h3>
+                <h3 className="text-lg font-bold mb-3 text-gray-700">基本情報</h3>
                 <div className="space-y-2 text-sm">
                   <p><strong>メール:</strong> {selectedUser.email}</p>
                   <p><strong>電話:</strong> {selectedUser.phone}</p>
@@ -2643,7 +2643,7 @@ const BusinessMatchingApp: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-bold mb-3 text-green-600">SNSアカウント</h3>
+                <h3 className="text-lg font-bold mb-3 text-gray-700">SNSアカウント</h3>
                 <div className="space-y-2 text-sm">
                   {selectedUser.sns1Type && (
                     <p><strong>{selectedUser.sns1Type}:</strong> {selectedUser.sns1Account}</p>
@@ -2661,7 +2661,7 @@ const BusinessMatchingApp: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-bold mb-3 text-purple-600">ビジネス情報</h3>
+                <h3 className="text-lg font-bold mb-3 text-gray-700">ビジネス情報</h3>
                 <div className="space-y-2 text-sm">
                   <p><strong>ビジネス名:</strong> {selectedUser.businessName}</p>
                   <p><strong>業種:</strong> {selectedUser.industry}</p>
@@ -2670,7 +2670,7 @@ const BusinessMatchingApp: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-bold mb-3 text-orange-600">所在地</h3>
+                <h3 className="text-lg font-bold mb-3 text-gray-700">所在地</h3>
                 <div className="space-y-2 text-sm">
                   <p><strong>国:</strong> {selectedUser.country}</p>
                   <p><strong>都道府県:</strong> {selectedUser.region}</p>
@@ -2679,17 +2679,17 @@ const BusinessMatchingApp: React.FC = () => {
               </div>
 
               <div className="col-span-2">
-                <h3 className="text-lg font-bold mb-3 text-cyan-600">メンバーへのメッセージ</h3>
-                <p className="text-sm bg-cyan-50 p-4 rounded-lg italic">
+                <h3 className="text-lg font-bold mb-3 text-gray-700">メンバーへのメッセージ</h3>
+                <p className="text-sm bg-gray-50 p-4 rounded-lg italic">
                   {selectedUser.message || 'メッセージ未設定'}
                 </p>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold mb-3 text-indigo-600">提供できる価値</h3>
+                <h3 className="text-lg font-bold mb-3 text-gray-700">提供できる価値</h3>
                 <div className="flex flex-wrap gap-2">
                   {selectedUser.skills.map((skill, idx) => (
-                    <span key={idx} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm">
+                    <span key={idx} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
                       {skill}
                     </span>
                   ))}
@@ -2697,10 +2697,10 @@ const BusinessMatchingApp: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-bold mb-3 text-pink-600">興味・関心</h3>
+                <h3 className="text-lg font-bold mb-3 text-gray-700">興味・関心</h3>
                 <div className="flex flex-wrap gap-2">
                   {selectedUser.interests.map((interest, idx) => (
-                    <span key={idx} className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm">
+                    <span key={idx} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
                       {interest}
                     </span>
                   ))}
