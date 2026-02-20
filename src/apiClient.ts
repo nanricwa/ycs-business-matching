@@ -208,3 +208,33 @@ export async function apiResetPassword(token: string, newPassword: string): Prom
   });
   return { ...data, ok, status };
 }
+
+/** メール通知設定 */
+export interface NotificationSettings {
+  admin_notify_enabled: string;
+  admin_notify_subject: string;
+  admin_notify_body: string;
+  user_welcome_enabled: string;
+  user_welcome_subject: string;
+  user_welcome_body: string;
+  password_reset_subject: string;
+  password_reset_body: string;
+  [key: string]: string;
+}
+
+/** メール通知設定を取得（管理者のみ） */
+export async function apiGetNotificationSettings(): Promise<{ settings?: NotificationSettings; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ settings?: NotificationSettings; error?: string }>('notification-settings.php', {
+    method: 'GET',
+  });
+  return { ...data, ok, status };
+}
+
+/** メール通知設定を保存（管理者のみ） */
+export async function apiSaveNotificationSettings(settings: Partial<NotificationSettings>): Promise<{ success?: boolean; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ success?: boolean; error?: string }>('notification-settings.php', {
+    method: 'POST',
+    body: { settings },
+  });
+  return { ...data, ok, status };
+}

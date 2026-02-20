@@ -151,6 +151,41 @@ function json_response(array $data, int $status = 200): void {
     echo json_encode($data);
 }
 
+/**
+ * メール通知テンプレートを DB から取得する。
+ * 未設定のキーにはデフォルト値を返す。
+ */
+function get_notification_settings(PDO $pdo): array {
+    $defaults = [
+        'admin_notify_enabled'   => '1',
+        'admin_notify_subject'   => '[YCSマッチング] 新規登録がありました',
+        'admin_notify_body'      => "新規登録がありました。\n\n名前: {{name}}\nメールアドレス: {{email}}\n登録日時: {{date}}\n\n{{signature}}",
+        'user_welcome_enabled'   => '1',
+        'user_welcome_subject'   => '[YCSマッチング] 登録が完了しました',
+        'user_welcome_body'      => "{{name}} 様\n\nYCSマッチングプラットフォームへの登録が完了しました。\n\nこのメールアドレスと登録時にお決めいただいたパスワードで、以下のURLからログインできます。\n\nログインURL: {{login_url}}\n\n{{signature}}",
+        'password_reset_subject'  => '[YCSマッチング] パスワード再設定のご案内',
+        'password_reset_body'     => "パスワード再設定のリクエストを受け付けました。\n\n以下のリンクをクリックし、新しいパスワードを設定してください。\n（有効期限: 1時間）\n\n{{reset_link}}\n\nこのメールに心当たりがない場合は、無視してください。\n\n{{signature}}",
+    ];
+    try {
+        $stmt = $pdo->query('SELECT setting_key, setting_value FROM notification_settings');
+        $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        return array_merge($defaults, $rows ?: []);
+    } catch (Throwable $e) {
+        // テーブルが未作成の場合はデフォルト値を返す
+        return $defaults;
+    }
+}
+
+/**
+ * テンプレート変数を置換する
+ */
+function render_template(string $template, array $vars): string {
+    foreach ($vars as $key => $value) {
+        $template = str_replace('{{' . $key . '}}', (string) $value, $template);
+    }
+    return $template;
+}
+
 function row_to_user(array $row): array {
     $skills = $row['skills'] ?? '[]';
     $interests = $row['interests'] ?? '[]';
