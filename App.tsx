@@ -2519,8 +2519,9 @@ const BusinessMatchingApp: React.FC = () => {
                                 }
                               });
                             }}
-                            disabled={currentUserProfile?.id === user.id}
+                            disabled={currentUserProfile?.id === user.id || user.role === 'admin'}
                             className="text-red-600 hover:text-red-800 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={user.role === 'admin' ? '管理者は削除できません。先に権限を変更してください。' : ''}
                           >
                             削除
                           </button>
@@ -2595,7 +2596,14 @@ const BusinessMatchingApp: React.FC = () => {
                   onChange={(e) => {
                     const newRole = e.target.value as 'admin' | 'user';
                     const action = newRole === 'admin' ? '管理者に昇格' : '一般ユーザーに降格';
-                    if (!confirm(`${selectedUser.name}（${selectedUser.email}）を${action}しますか？`)) {
+                    const warning = newRole === 'admin'
+                      ? `【注意】${selectedUser.name}（${selectedUser.email}）を管理者に昇格します。\n\n管理者はユーザーの追加・削除・権限変更などすべての操作が可能になります。\n\n本当に実行しますか？`
+                      : `${selectedUser.name}（${selectedUser.email}）を一般ユーザーに降格します。\n\n管理者権限が剥奪され、管理画面にアクセスできなくなります。\n\n本当に実行しますか？`;
+                    if (!confirm(warning)) {
+                      e.target.value = selectedUser.role || 'user';
+                      return;
+                    }
+                    if (newRole === 'admin' && !confirm('最終確認：この操作を実行してよろしいですか？')) {
                       e.target.value = selectedUser.role || 'user';
                       return;
                     }
@@ -2603,6 +2611,7 @@ const BusinessMatchingApp: React.FC = () => {
                       if (res.ok && res.success) {
                         setSelectedUser({ ...selectedUser, role: newRole });
                         setAdminUsersList((prev) => prev.map((u) => u.id === selectedUser.id ? { ...u, role: newRole } : u));
+                        alert(`${selectedUser.name} の権限を ${newRole === 'admin' ? '管理者' : '一般ユーザー'} に変更しました。`);
                       } else {
                         alert(res.error || '権限変更に失敗しました');
                       }
