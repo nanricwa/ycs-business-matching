@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+$auth = get_authorization_header();
 $token = preg_replace('/^Bearer\s+/i', '', $auth);
 $payload = $token !== '' ? jwt_decode($token) : null;
 if (!$payload) {

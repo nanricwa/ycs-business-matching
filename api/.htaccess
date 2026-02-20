@@ -1,10 +1,19 @@
 # /match/api/* を各 PHP にルーティング（MariaDB 版・proxy は使用しない）
 <IfModule mod_rewrite.c>
 RewriteEngine On
+
+# Apache が Authorization ヘッダーを PHP に渡すための設定
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 RewriteRule ^register/?$ register.php [L,QSA]
 RewriteRule ^login/?$ login.php [L,QSA]
 RewriteRule ^me/?$ me.php [L,QSA]
 RewriteRule ^users/?$ users.php [L,QSA]
 RewriteRule ^members/?$ members.php [L,QSA]
 RewriteRule ^delete-user/?$ delete-user.php [L,QSA]
+RewriteRule ^update-role/?$ update-role.php [L,QSA]
 </IfModule>
+
+# CGI/FastCGI 環境でも Authorization ヘッダーを渡す
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
