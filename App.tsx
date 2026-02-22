@@ -210,10 +210,24 @@ const BusinessMatchingApp: React.FC = () => {
     if (currentView === 'admin-settings' && isAdmin && getStoredToken()) {
       setNotifLoading(true);
       setNotifSaveMsg('');
+      const defaultSettings: NotificationSettings = {
+        admin_notify_enabled: '1',
+        admin_notify_subject: '[YCSマッチング] 新規登録がありました',
+        admin_notify_body: '新規登録がありました。\n\n名前: {{name}}\nメールアドレス: {{email}}\n登録日時: {{date}}\n\n{{signature}}',
+        user_welcome_enabled: '1',
+        user_welcome_subject: '[YCSマッチング] 登録が完了しました',
+        user_welcome_body: '{{name}} 様\n\nYCSマッチングプラットフォームへの登録が完了しました。\n\nこのメールアドレスと登録時にお決めいただいたパスワードで、以下のURLからログインできます。\n\nログインURL: {{login_url}}\n\n{{signature}}',
+        password_reset_subject: '[YCSマッチング] パスワード再設定のご案内',
+        password_reset_body: 'パスワード再設定のリクエストを受け付けました。\n\n以下のリンクをクリックし、新しいパスワードを設定してください。\n（有効期限: 1時間）\n\n{{reset_link}}\n\nこのメールに心当たりがない場合は、無視してください。\n\n{{signature}}',
+      };
       apiGetNotificationSettings().then((r) => {
         if (r.ok && r.settings) {
           setNotifSettings(r.settings);
+        } else {
+          setNotifSettings(defaultSettings);
         }
+      }).catch(() => {
+        setNotifSettings(defaultSettings);
       }).finally(() => setNotifLoading(false));
     }
   }, [currentView, isAdmin]);
