@@ -2575,16 +2575,8 @@ const BusinessMatchingApp: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              {/* 管理者ログインについて */}
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
-                <p className="text-sm text-blue-800 font-semibold mb-1">管理者ログインについて</p>
-                <p className="text-xs text-blue-700">
-                  管理者はトップの「ログイン」から、role=admin のアカウントでメール・パスワードを入力してログインします。
-                </p>
-              </div>
-
               {/* メール通知設定セクション */}
-              <div className="border-t pt-6">
+              <div>
                 <div className="flex items-center gap-2 mb-4">
                   <Mail className="text-yellow-600" size={24} />
                   <h3 className="text-lg font-bold">メール通知カスタマイズ</h3>
