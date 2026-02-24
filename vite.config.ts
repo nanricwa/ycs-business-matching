@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: true,
           },
+          '/api': {
+            target: 'https://ycscampaign.com',
+            changeOrigin: true,
+            secure: true,
+            rewrite: (path: string) => '/match' + path,
+          },
         },
       },
       plugins: [react()],

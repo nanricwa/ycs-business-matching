@@ -210,10 +210,24 @@ const BusinessMatchingApp: React.FC = () => {
     if (currentView === 'admin-settings' && isAdmin && getStoredToken()) {
       setNotifLoading(true);
       setNotifSaveMsg('');
+      const defaultSettings: NotificationSettings = {
+        admin_notify_enabled: '1',
+        admin_notify_subject: '[YCSマッチング] 新規登録がありました',
+        admin_notify_body: '新規登録がありました。\n\n名前: {{name}}\nメールアドレス: {{email}}\n登録日時: {{date}}\n\n{{signature}}',
+        user_welcome_enabled: '1',
+        user_welcome_subject: '[YCSマッチング] 登録が完了しました',
+        user_welcome_body: '{{name}} 様\n\nYCSマッチングプラットフォームへの登録が完了しました。\n\nこのメールアドレスと登録時にお決めいただいたパスワードで、以下のURLからログインできます。\n\nログインURL: {{login_url}}\n\n{{signature}}',
+        password_reset_subject: '[YCSマッチング] パスワード再設定のご案内',
+        password_reset_body: 'パスワード再設定のリクエストを受け付けました。\n\n以下のリンクをクリックし、新しいパスワードを設定してください。\n（有効期限: 1時間）\n\n{{reset_link}}\n\nこのメールに心当たりがない場合は、無視してください。\n\n{{signature}}',
+      };
       apiGetNotificationSettings().then((r) => {
         if (r.ok && r.settings) {
           setNotifSettings(r.settings);
+        } else {
+          setNotifSettings(defaultSettings);
         }
+      }).catch(() => {
+        setNotifSettings(defaultSettings);
       }).finally(() => setNotifLoading(false));
     }
   }, [currentView, isAdmin]);
@@ -2575,16 +2589,8 @@ const BusinessMatchingApp: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              {/* 管理者ログインについて */}
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
-                <p className="text-sm text-blue-800 font-semibold mb-1">管理者ログインについて</p>
-                <p className="text-xs text-blue-700">
-                  管理者はトップの「ログイン」から、role=admin のアカウントでメール・パスワードを入力してログインします。
-                </p>
-              </div>
-
               {/* メール通知設定セクション */}
-              <div className="border-t pt-6">
+              <div>
                 <div className="flex items-center gap-2 mb-4">
                   <Mail className="text-yellow-600" size={24} />
                   <h3 className="text-lg font-bold">メール通知カスタマイズ</h3>
