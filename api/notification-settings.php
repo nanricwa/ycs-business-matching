@@ -58,9 +58,14 @@ $defaults = [
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // 全設定を取得してデフォルトとマージ
-    $stmt = $pdo->query('SELECT setting_key, setting_value FROM notification_settings');
-    $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-    $settings = array_merge($defaults, $rows ?: []);
+    try {
+        $stmt = $pdo->query('SELECT setting_key, setting_value FROM notification_settings');
+        $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        $settings = array_merge($defaults, $rows ?: []);
+    } catch (Throwable $e) {
+        // テーブルが未作成・クエリ失敗時はデフォルト値を返す
+        $settings = $defaults;
+    }
     ob_end_clean();
     json_response(['settings' => $settings]);
     exit;
@@ -80,17 +85,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $allowedKeys = array_keys($defaults);
     $saved = 0;
 
-    $stmt = $pdo->prepare(<<<'SQL'
+    try {
+        $stmt = $pdo->prepare(<<<'SQL'
 INSERT INTO notification_settings (setting_key, setting_value, updated_at)
 VALUES (?, ?, NOW())
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()
 SQL);
 
-    foreach ($settings as $key => $value) {
-        if (in_array($key, $allowedKeys, true)) {
-            $stmt->execute([$key, (string) $value]);
-            $saved++;
+        foreach ($settings as $key => $value) {
+            if (in_array($key, $allowedKeys, true)) {
+                $stmt->execute([$key, (string) $value]);
+                $saved++;
+            }
         }
+    } catch (Throwable $e) {
+        ob_end_clean();
+        json_response(['error' => '設定の保存に失敗しました: ' . $e->getMessage()], 500);
+        exit;
     }
 
     ob_end_clean();

@@ -2599,12 +2599,12 @@ const BusinessMatchingApp: React.FC = () => {
                   各メールの件名・本文テンプレートを編集できます。テンプレート変数: <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code> ユーザー名, <code className="bg-gray-100 px-1 rounded">{'{{email}}'}</code> メールアドレス, <code className="bg-gray-100 px-1 rounded">{'{{date}}'}</code> 日時, <code className="bg-gray-100 px-1 rounded">{'{{login_url}}'}</code> ログインURL, <code className="bg-gray-100 px-1 rounded">{'{{reset_link}}'}</code> リセットリンク, <code className="bg-gray-100 px-1 rounded">{'{{signature}}'}</code> 署名
                 </p>
 
-                {notifLoading ? (
+                {notifLoading || !notifSettings ? (
                   <div className="text-center py-8 text-gray-500">
                     <RefreshCw className="animate-spin inline-block mr-2" size={20} />
                     設定を読み込み中...
                   </div>
-                ) : notifSettings ? (
+                ) : (
                   <div className="space-y-3">
                     {/* === 管理者通知メール === */}
                     <div className="border rounded-lg overflow-hidden">
@@ -2834,10 +2834,6 @@ const BusinessMatchingApp: React.FC = () => {
                         </span>
                       )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-gray-500 text-sm">
-                    設定の読み込みに失敗しました
                   </div>
                 )}
               </div>
