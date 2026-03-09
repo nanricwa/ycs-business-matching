@@ -450,6 +450,20 @@ const BusinessMatchingApp: React.FC = () => {
     }
   };
 
+  /** テキスト中のURLを自動的にクリック可能なリンクに変換する */
+  const linkifyText = (text: string | undefined | null) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s　,，、。）)」』\]]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) =>
+      urlRegex.test(part) ? (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800 break-all">{part}</a>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
+
   /** 2ユーザー間のマッチングスコアを計算する */
   const calcMatchScores = (me: UserProfile, other: UserProfile) => {
     // ビジネススコア (0-5): 業種一致 + スキル重複
@@ -490,7 +504,7 @@ const BusinessMatchingApp: React.FC = () => {
       <div className="text-center mb-12">
         <h1 className="text-6xl font-bold mb-4">YCS</h1>
         <h2 className="text-xl sm:text-3xl font-bold mb-6">マッチングプラットフォーム</h2>
-        <p className="text-xl opacity-90 mb-2">ビジネス × 居住地 × 趣味</p>
+        <p className="text-xl opacity-90 mb-2">ビジネス × 地域 × 興味</p>
         <p className="text-lg opacity-80">3つの軸で最適なパートナーを見つけよう</p>
       </div>
 
@@ -536,7 +550,7 @@ const BusinessMatchingApp: React.FC = () => {
         </div>
         <div className="text-center">
           <Heart size={48} className="mx-auto mb-2" />
-          <p className="font-semibold">趣味でつながる</p>
+          <p className="font-semibold">興味でつながる</p>
         </div>
       </div>
     </div>
@@ -1552,8 +1566,8 @@ const BusinessMatchingApp: React.FC = () => {
                         <div className="mt-3 pt-3 border-t">
                           <div className="flex justify-between text-sm">
                             <span>ビジネス {renderStars((user as UserProfile & { businessScore?: number }).businessScore)}</span>
-                            <span>近隣性 {renderStars((user as UserProfile & { locationScore?: number }).locationScore)}</span>
-                            <span>趣味 {renderStars((user as UserProfile & { interestScore?: number }).interestScore)}</span>
+                            <span>地域 {renderStars((user as UserProfile & { locationScore?: number }).locationScore)}</span>
+                            <span>興味 {renderStars((user as UserProfile & { interestScore?: number }).interestScore)}</span>
                           </div>
                         </div>
                       </div>
@@ -1890,7 +1904,7 @@ const BusinessMatchingApp: React.FC = () => {
                         <div className="space-y-2 text-sm ml-8">
                           <p><strong>ビジネス名:</strong> {currentUserProfile.businessName}</p>
                           <p><strong>業種:</strong> {currentUserProfile.industry}</p>
-                          <p><strong>内容:</strong> {currentUserProfile.business}</p>
+                          <p><strong>内容:</strong> {linkifyText(currentUserProfile.business)}</p>
                         </div>
                       )}
                     </div>
@@ -2122,7 +2136,7 @@ const BusinessMatchingApp: React.FC = () => {
                     <Briefcase className="mr-2 text-blue-600" size={24} />
                     <h3 className="text-lg font-bold">ビジネス情報</h3>
                   </div>
-                  <p className="text-gray-700 ml-8">{selectedUser.business}</p>
+                  <p className="text-gray-700 ml-8">{linkifyText(selectedUser.business)}</p>
                 </div>
 
                 <div>
@@ -2222,11 +2236,11 @@ const BusinessMatchingApp: React.FC = () => {
                       <span className="text-lg">{renderStars(selectedUser.businessScore)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>近隣性</span>
+                      <span>地域</span>
                       <span className="text-lg">{renderStars(selectedUser.locationScore)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>趣味</span>
+                      <span>興味</span>
                       <span className="text-lg">{renderStars(selectedUser.interestScore)}</span>
                     </div>
                   </div>
@@ -2980,7 +2994,7 @@ const BusinessMatchingApp: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <p><strong>ビジネス名:</strong> {selectedUser.businessName}</p>
                   <p><strong>業種:</strong> {selectedUser.industry}</p>
-                  <p><strong>内容:</strong> {(selectedUser as UserProfile & { business?: string }).business ?? selectedUser.businessName ?? ''}</p>
+                  <p><strong>内容:</strong> {linkifyText((selectedUser as UserProfile & { business?: string }).business ?? selectedUser.businessName ?? '')}</p>
                 </div>
               </div>
 
