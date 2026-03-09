@@ -181,14 +181,21 @@ const BusinessMatchingApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn || !getStoredToken()) return;
+    if (!isLoggedIn || !getStoredToken() || !currentUserProfile) return;
     setMembersLoading(true);
     apiMembers()
       .then((res) => {
-        if (res.ok && res.users) setMembersList(res.users as UserProfile[]);
+        if (res.ok && res.users) {
+          const scored = (res.users as UserProfile[]).map((u) => ({
+            ...u,
+            ...calcMatchScores(currentUserProfile, u),
+          }));
+          scored.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
+          setMembersList(scored);
+        }
       })
       .finally(() => setMembersLoading(false));
-  }, [isLoggedIn]);
+  }, [isLoggedIn, currentUserProfile]);
 
   useEffect(() => {
     if (currentView === 'admin' && isAdmin && getStoredToken()) {
@@ -441,6 +448,36 @@ const BusinessMatchingApp: React.FC = () => {
     } else {
       alert(`${deleted.length} 件を削除しました。`);
     }
+  };
+
+  /** 2ユーザー間のマッチングスコアを計算する */
+  const calcMatchScores = (me: UserProfile, other: UserProfile) => {
+    // ビジネススコア (0-5): 業種一致 + スキル重複
+    let biz = 0;
+    if (me.industry && other.industry && me.industry.toLowerCase() === other.industry.toLowerCase()) biz += 2;
+    const mySkills = (me.skills || []).map(s => s.toLowerCase());
+    const otherSkills = (other.skills || []).map(s => s.toLowerCase());
+    const skillOverlap = mySkills.filter(s => otherSkills.includes(s)).length;
+    biz += Math.min(skillOverlap, 3); // 最大3点
+    biz = Math.min(biz, 5);
+
+    // 近隣性スコア (0-5): 国・地域・市区町村の一致
+    let loc = 0;
+    if (me.country && other.country && me.country === other.country) loc += 1;
+    if (me.region && other.region && me.region === other.region) loc += 2;
+    if (me.city && other.city && me.city === other.city) loc += 2;
+    loc = Math.min(loc, 5);
+
+    // 趣味スコア (0-5): 興味・関心の重複
+    const myInterests = (me.interests || []).map(s => s.toLowerCase());
+    const otherInterests = (other.interests || []).map(s => s.toLowerCase());
+    const intOverlap = myInterests.filter(s => otherInterests.includes(s)).length;
+    let intScore = Math.min(intOverlap * 2, 5); // 1つ一致で2点、最大5
+
+    // 総合マッチ度 (0-100%)
+    const total = Math.round(((biz + loc + intScore) / 15) * 100);
+
+    return { matchScore: total, businessScore: biz, locationScore: loc, interestScore: intScore };
   };
 
   const renderStars = (score?: number) => {
