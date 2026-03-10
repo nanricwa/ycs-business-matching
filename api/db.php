@@ -73,3 +73,29 @@ CREATE TABLE IF NOT EXISTS notification_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SQL;
 $pdo->exec($createNotificationSettingsTable);
+
+$createFavoritesTable = <<<'SQL'
+CREATE TABLE IF NOT EXISTS favorites (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  target_user_id INT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_target (user_id, target_user_id),
+  KEY idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SQL;
+$pdo->exec($createFavoritesTable);
+
+$createReviewsTable = <<<'SQL'
+CREATE TABLE IF NOT EXISTS reviews (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  reviewer_id INT UNSIGNED NOT NULL,
+  target_user_id INT UNSIGNED NOT NULL,
+  comment TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_reviewer_target (reviewer_id, target_user_id),
+  KEY idx_target (target_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SQL;
+$pdo->exec($createReviewsTable);

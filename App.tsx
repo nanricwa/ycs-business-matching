@@ -15,9 +15,14 @@ import {
   apiResetPassword,
   apiGetNotificationSettings,
   apiSaveNotificationSettings,
+  apiFavorites,
+  apiToggleFavorite,
+  apiGetReviews,
+  apiPostReview,
   type UserProfile as ApiUserProfile,
   type RegisterBody,
   type NotificationSettings,
+  type Review,
 } from './src/apiClient';
 
 interface UserProfile {
@@ -122,6 +127,12 @@ const BusinessMatchingApp: React.FC = () => {
   const [notifSaveMsg, setNotifSaveMsg] = useState<string>('');
   const [notifExpandedSection, setNotifExpandedSection] = useState<string>('admin_notify');
   const [notifPreviewKey, setNotifPreviewKey] = useState<string>('');
+  const [keywordSearch, setKeywordSearch] = useState<string>('');
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
+  const [selectedUserReviews, setSelectedUserReviews] = useState<Review[]>([]);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [reviewSubmitting, setReviewSubmitting] = useState<boolean>(false);
 
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     industry: '',
@@ -181,14 +192,27 @@ const BusinessMatchingApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn || !getStoredToken()) return;
+    if (!isLoggedIn || !getStoredToken() || !currentUserProfile) return;
     setMembersLoading(true);
     apiMembers()
       .then((res) => {
-        if (res.ok && res.users) setMembersList(res.users as UserProfile[]);
+        if (res.ok && res.users) {
+          const scored = (res.users as UserProfile[]).map((u) => ({
+            ...u,
+            ...calcMatchScores(currentUserProfile, u),
+          }));
+          scored.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
+          setMembersList(scored);
+        }
       })
       .finally(() => setMembersLoading(false));
-  }, [isLoggedIn]);
+    // お気に入り一覧も取得
+    apiFavorites().then((res) => {
+      if (res.ok && res.favoriteIds) {
+        setFavoriteIds(new Set(res.favoriteIds));
+      }
+    });
+  }, [isLoggedIn, currentUserProfile]);
 
   useEffect(() => {
     if (currentView === 'admin' && isAdmin && getStoredToken()) {
@@ -300,33 +324,69 @@ const BusinessMatchingApp: React.FC = () => {
     setSearchFilters(prev => ({ ...prev, [name]: value }));
   };
 
+  /** 地方名 → 都道府県マッピング（地域検索の拡張用） */
+  const regionGroupMap: Record<string, string[]> = {
+    '北海道': ['北海道'],
+    '東北': ['青森県','青森','岩手県','岩手','宮城県','宮城','秋田県','秋田','山形県','山形','福島県','福島'],
+    '関東': ['茨城県','茨城','栃木県','栃木','群馬県','群馬','埼玉県','埼玉','千葉県','千葉','東京都','東京','神奈川県','神奈川'],
+    '北陸': ['新潟県','新潟','富山県','富山','石川県','石川','福井県','福井'],
+    '甲信越': ['新潟県','新潟','山梨県','山梨','長野県','長野'],
+    '中部': ['新潟県','新潟','富山県','富山','石川県','石川','福井県','福井','山梨県','山梨','長野県','長野','岐阜県','岐阜','静岡県','静岡','愛知県','愛知'],
+    '東海': ['岐阜県','岐阜','静岡県','静岡','愛知県','愛知','三重県','三重'],
+    '関西': ['三重県','三重','滋賀県','滋賀','京都府','京都','大阪府','大阪','兵庫県','兵庫','奈良県','奈良','和歌山県','和歌山'],
+    '近畿': ['三重県','三重','滋賀県','滋賀','京都府','京都','大阪府','大阪','兵庫県','兵庫','奈良県','奈良','和歌山県','和歌山'],
+    '中国': ['鳥取県','鳥取','島根県','島根','岡山県','岡山','広島県','広島','山口県','山口'],
+    '四国': ['徳島県','徳島','香川県','香川','愛媛県','愛媛','高知県','高知'],
+    '九州': ['福岡県','福岡','佐賀県','佐賀','長崎県','長崎','熊本県','熊本','大分県','大分','宮崎県','宮崎','鹿児島県','鹿児島','沖縄県','沖縄'],
+    '沖縄': ['沖縄県','沖縄'],
+  };
+
+  /** 地域検索: 地方名なら所属する都道府県にも拡張マッチ */
+  const matchesRegion = (user: UserProfile, query: string): boolean => {
+    const q = query.toLowerCase();
+    const userRegion = user.region.toLowerCase();
+    const userCity = user.city.toLowerCase();
+    // 直接マッチ
+    if (userRegion.includes(q) || userCity.includes(q)) return true;
+    // 地方名マッチ: クエリが地方名のキーに含まれるか
+    for (const [groupName, prefectures] of Object.entries(regionGroupMap)) {
+      if (groupName.includes(query) || query.includes(groupName)) {
+        if (prefectures.some(p => userRegion.includes(p.toLowerCase()) || p.toLowerCase().includes(userRegion))) {
+          return true;
+        }
+      }
+    }
+    // 逆引き: ユーザーの地域から地方名を探し、クエリが地方名にマッチするか
+    return false;
+  };
+
   const performSearch = () => {
     let results = [...membersList];
 
+    // キーワード全文検索
+    results = filterByKeyword(results, keywordSearch);
+
     if (searchFilters.industry) {
-      results = results.filter(user => 
+      results = results.filter(user =>
         user.industry.toLowerCase().includes(searchFilters.industry.toLowerCase())
       );
     }
 
     if (searchFilters.region) {
-      results = results.filter(user => 
-        user.region.toLowerCase().includes(searchFilters.region.toLowerCase()) ||
-        user.city.toLowerCase().includes(searchFilters.region.toLowerCase())
-      );
+      results = results.filter(user => matchesRegion(user, searchFilters.region));
     }
 
     if (searchFilters.skill) {
-      results = results.filter(user => 
-        user.skills.some(skill => 
+      results = results.filter(user =>
+        user.skills.some(skill =>
           skill.toLowerCase().includes(searchFilters.skill.toLowerCase())
         )
       );
     }
 
     if (searchFilters.interest) {
-      results = results.filter(user => 
-        user.interests.some(interest => 
+      results = results.filter(user =>
+        user.interests.some(interest =>
           interest.toLowerCase().includes(searchFilters.interest.toLowerCase())
         )
       );
@@ -443,6 +503,143 @@ const BusinessMatchingApp: React.FC = () => {
     }
   };
 
+  /** お気に入りトグル */
+  const handleToggleFavorite = async (e: React.MouseEvent, targetUserId: number) => {
+    e.stopPropagation();
+    const res = await apiToggleFavorite(targetUserId);
+    if (res.ok) {
+      setFavoriteIds(prev => {
+        const next = new Set(prev);
+        if (res.action === 'removed') next.delete(targetUserId);
+        else next.add(targetUserId);
+        return next;
+      });
+    }
+  };
+
+  /** レビュー一覧を取得 */
+  const loadReviews = async (userId: number) => {
+    const res = await apiGetReviews(userId);
+    if (res.ok && res.reviews) {
+      setSelectedUserReviews(res.reviews);
+    }
+  };
+
+  /** レビュー投稿 */
+  const handleSubmitReview = async (targetUserId: number) => {
+    if (!reviewComment.trim()) return;
+    setReviewSubmitting(true);
+    const res = await apiPostReview(targetUserId, reviewComment.trim());
+    if (res.ok) {
+      setReviewComment('');
+      await loadReviews(targetUserId);
+    } else {
+      alert(res.error || 'レビューの投稿に失敗しました');
+    }
+    setReviewSubmitting(false);
+  };
+
+  /** プロフィール充実度を計算する (0-100%) */
+  const calcProfileCompleteness = (user: UserProfile): number => {
+    const checks = [
+      !!user.name,
+      !!user.phone,
+      !!user.chatworkId,
+      !!(user.sns1Account),
+      !!user.businessName,
+      !!user.industry,
+      !!user.business,
+      !!user.country,
+      !!user.region,
+      !!user.city,
+      user.skills && user.skills.length > 0,
+      user.interests && user.interests.length > 0,
+      !!user.message,
+      !!user.mission,
+      !!(user.profileImage || user.image),
+    ];
+    const filled = checks.filter(Boolean).length;
+    return Math.round((filled / checks.length) * 100);
+  };
+
+  /** 新規登録メンバーか判定（30日以内） */
+  const isNewMember = (user: UserProfile): boolean => {
+    if (!user.registeredAt) return false;
+    const reg = new Date(user.registeredAt);
+    const now = new Date();
+    const diff = (now.getTime() - reg.getTime()) / (1000 * 60 * 60 * 24);
+    return diff <= 30;
+  };
+
+  /** キーワードでメンバーをフィルタリング */
+  const filterByKeyword = (users: UserProfile[], keyword: string): UserProfile[] => {
+    if (!keyword.trim()) return users;
+    const kw = keyword.toLowerCase();
+    return users.filter(u => {
+      const fields = [
+        u.name, u.businessName, u.industry, u.business,
+        u.message, u.mission,
+        ...(u.skills || []),
+        ...(u.interests || []),
+      ];
+      return fields.some(f => f && f.toLowerCase().includes(kw));
+    });
+  };
+
+  /** テキスト中のURLを自動的にクリック可能なリンクに変換する */
+  const linkifyText = (text: string | undefined | null) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s　,，、。）)」』\]]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) =>
+      urlRegex.test(part) ? (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800 break-all">{part}</a>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
+
+  /** 2ユーザー間のマッチングスコアを計算する */
+  const calcMatchScores = (me: UserProfile, other: UserProfile) => {
+    // ビジネススコア (0-5): 業種一致 + スキル重複
+    let biz = 0;
+    if (me.industry && other.industry && me.industry.toLowerCase() === other.industry.toLowerCase()) biz += 2;
+    const mySkills = (me.skills || []).map(s => s.toLowerCase());
+    const otherSkills = (other.skills || []).map(s => s.toLowerCase());
+    const skillOverlap = mySkills.filter(s => otherSkills.includes(s)).length;
+    biz += Math.min(skillOverlap, 3); // 最大3点
+    biz = Math.min(biz, 5);
+
+    // 近隣性スコア (0-5): 国・地域・市区町村・同一地方の一致
+    let loc = 0;
+    if (me.country && other.country && me.country === other.country) loc += 1;
+    if (me.region && other.region && me.region === other.region) {
+      loc += 2;
+    } else if (me.region && other.region) {
+      // 同一地方（関東、関西など）に属するか判定 → +1
+      const sameGroup = Object.values(regionGroupMap).some(prefectures => {
+        const meMatch = prefectures.some(p => me.region.includes(p) || p.includes(me.region));
+        const otherMatch = prefectures.some(p => other.region.includes(p) || p.includes(other.region));
+        return meMatch && otherMatch;
+      });
+      if (sameGroup) loc += 1;
+    }
+    if (me.city && other.city && me.city === other.city) loc += 2;
+    loc = Math.min(loc, 5);
+
+    // 趣味スコア (0-5): 興味・関心の重複
+    const myInterests = (me.interests || []).map(s => s.toLowerCase());
+    const otherInterests = (other.interests || []).map(s => s.toLowerCase());
+    const intOverlap = myInterests.filter(s => otherInterests.includes(s)).length;
+    let intScore = Math.min(intOverlap * 2, 5); // 1つ一致で2点、最大5
+
+    // 総合マッチ度 (0-100%)
+    const total = Math.round(((biz + loc + intScore) / 15) * 100);
+
+    return { matchScore: total, businessScore: biz, locationScore: loc, interestScore: intScore };
+  };
+
   const renderStars = (score?: number) => {
     const s = score || 0;
     return '★'.repeat(s) + '☆'.repeat(5 - s);
@@ -453,7 +650,7 @@ const BusinessMatchingApp: React.FC = () => {
       <div className="text-center mb-12">
         <h1 className="text-6xl font-bold mb-4">YCS</h1>
         <h2 className="text-xl sm:text-3xl font-bold mb-6">マッチングプラットフォーム</h2>
-        <p className="text-xl opacity-90 mb-2">ビジネス × 居住地 × 趣味</p>
+        <p className="text-xl opacity-90 mb-2">ビジネス × 地域 × 興味</p>
         <p className="text-lg opacity-80">3つの軸で最適なパートナーを見つけよう</p>
       </div>
 
@@ -499,7 +696,7 @@ const BusinessMatchingApp: React.FC = () => {
         </div>
         <div className="text-center">
           <Heart size={48} className="mx-auto mb-2" />
-          <p className="font-semibold">趣味でつながる</p>
+          <p className="font-semibold">興味でつながる</p>
         </div>
       </div>
     </div>
@@ -1462,21 +1659,52 @@ const BusinessMatchingApp: React.FC = () => {
               </div>
             </div>
 
+            {/* キーワード検索 + お気に入りフィルター */}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="フリーワードで検索..."
+                  value={keywordSearch}
+                  onChange={(e) => setKeywordSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
+                  showFavoritesOnly
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-white border-2 border-gray-300 text-gray-600 hover:border-pink-400'
+                }`}
+              >
+                <Heart size={16} fill={showFavoritesOnly ? 'white' : 'none'} />
+                お気に入り
+              </button>
+            </div>
+
             <div>
               <h3 className="text-xl font-bold mb-4 flex items-center">
                 <Users className="mr-2" size={24} />
-                おすすめマッチ
+                {showFavoritesOnly ? 'お気に入りメンバー' : 'おすすめマッチ'}
               </h3>
               {membersLoading ? (
                 <p className="text-gray-600">読み込み中...</p>
               ) : (
               <div className="space-y-4">
-                {membersList.filter(u => u.id !== currentUserProfile?.id).map(user => (
+                {filterByKeyword(membersList, keywordSearch)
+                  .filter(u => u.id !== currentUserProfile?.id)
+                  .filter(u => !showFavoritesOnly || favoriteIds.has(u.id))
+                  .map(user => (
                   <div 
                     key={user.id}
                     className="bg-white border-2 border-gray-200 rounded-xl p-5 shadow-md hover:shadow-xl transition-shadow cursor-pointer"
                     onClick={() => {
                       setSelectedUser(user);
+                      setSelectedUserReviews([]);
+                      setReviewComment('');
+                      loadReviews(user.id);
                       setCurrentView('profile');
                     }}
                   >
@@ -1490,12 +1718,25 @@ const BusinessMatchingApp: React.FC = () => {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-xl font-bold">{user.name}</h4>
-                          <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">
-                            {(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xl font-bold">{user.name}</h4>
+                            {isNewMember(user) && (
+                              <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => handleToggleFavorite(e, user.id)}
+                              className="p-1 hover:scale-110 transition-transform"
+                            >
+                              <Heart size={20} fill={favoriteIds.has(user.id) ? '#ec4899' : 'none'} color={favoriteIds.has(user.id) ? '#ec4899' : '#9ca3af'} />
+                            </button>
+                            <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">
+                              {(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%
+                            </div>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-2 text-sm">
                           <p className="flex items-center text-gray-700">
                             <Briefcase size={16} className="mr-2" />
@@ -1515,8 +1756,8 @@ const BusinessMatchingApp: React.FC = () => {
                         <div className="mt-3 pt-3 border-t">
                           <div className="flex justify-between text-sm">
                             <span>ビジネス {renderStars((user as UserProfile & { businessScore?: number }).businessScore)}</span>
-                            <span>近隣性 {renderStars((user as UserProfile & { locationScore?: number }).locationScore)}</span>
-                            <span>趣味 {renderStars((user as UserProfile & { interestScore?: number }).interestScore)}</span>
+                            <span>地域 {renderStars((user as UserProfile & { locationScore?: number }).locationScore)}</span>
+                            <span>興味 {renderStars((user as UserProfile & { interestScore?: number }).interestScore)}</span>
                           </div>
                         </div>
                       </div>
@@ -1671,6 +1912,30 @@ const BusinessMatchingApp: React.FC = () => {
                   {isEditMode ? formData.name : currentUserProfile?.name}
                 </h2>
                 <p className="text-sm opacity-90">登録日: {currentUserProfile?.registeredAt}</p>
+                {/* プロフィール充実度インジケーター */}
+                {(() => {
+                  const completeness = calcProfileCompleteness(currentUserProfile);
+                  return (
+                    <div className="mt-4 max-w-xs mx-auto">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>プロフィール充実度</span>
+                        <span className="font-bold">{completeness}%</span>
+                      </div>
+                      <div className="w-full bg-white/30 rounded-full h-3">
+                        <div
+                          className="h-3 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${completeness}%`,
+                            background: completeness === 100 ? '#22c55e' : 'linear-gradient(to right, #a855f7, #ec4899)',
+                          }}
+                        />
+                      </div>
+                      {completeness < 100 && (
+                        <p className="text-xs opacity-80 mt-1">プロフィールを完成させてマッチング精度を上げましょう</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="p-6 space-y-6">
@@ -1853,7 +2118,7 @@ const BusinessMatchingApp: React.FC = () => {
                         <div className="space-y-2 text-sm ml-8">
                           <p><strong>ビジネス名:</strong> {currentUserProfile.businessName}</p>
                           <p><strong>業種:</strong> {currentUserProfile.industry}</p>
-                          <p><strong>内容:</strong> {currentUserProfile.business}</p>
+                          <p><strong>内容:</strong> {linkifyText(currentUserProfile.business)}</p>
                         </div>
                       )}
                     </div>
@@ -2085,7 +2350,7 @@ const BusinessMatchingApp: React.FC = () => {
                     <Briefcase className="mr-2 text-blue-600" size={24} />
                     <h3 className="text-lg font-bold">ビジネス情報</h3>
                   </div>
-                  <p className="text-gray-700 ml-8">{selectedUser.business}</p>
+                  <p className="text-gray-700 ml-8">{linkifyText(selectedUser.business)}</p>
                 </div>
 
                 <div>
@@ -2185,16 +2450,73 @@ const BusinessMatchingApp: React.FC = () => {
                       <span className="text-lg">{renderStars(selectedUser.businessScore)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>近隣性</span>
+                      <span>地域</span>
                       <span className="text-lg">{renderStars(selectedUser.locationScore)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>趣味</span>
+                      <span>興味</span>
                       <span className="text-lg">{renderStars(selectedUser.interestScore)}</span>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* レビュー・推薦コメント */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold mb-4 flex items-center">
+                <MessageCircle className="mr-2 text-blue-600" size={24} />
+                推薦コメント
+              </h3>
+
+              {/* レビュー投稿フォーム */}
+              {currentUserProfile && selectedUser.id !== currentUserProfile.id && (
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-20 resize-none"
+                    placeholder={`${selectedUser.name}さんへの推薦コメントを書く...`}
+                    maxLength={500}
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-gray-500">{reviewComment.length}/500</span>
+                    <button
+                      onClick={() => handleSubmitReview(selectedUser.id)}
+                      disabled={reviewSubmitting || !reviewComment.trim()}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {reviewSubmitting ? '送信中...' : '投稿する'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* レビュー一覧 */}
+              {selectedUserReviews.length > 0 ? (
+                <div className="space-y-4">
+                  {selectedUserReviews.map((review) => (
+                    <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                          {review.reviewerImage ? (
+                            <img src={review.reviewerImage} alt={review.reviewerName} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-sm">👤</div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{review.reviewerName}</p>
+                          <p className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString('ja-JP')}</p>
+                        </div>
+                      </div>
+                      <p className="text-gray-700 text-sm ml-11">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm text-center py-4">まだ推薦コメントはありません</p>
+              )}
             </div>
 
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg text-center">
@@ -2223,8 +2545,24 @@ const BusinessMatchingApp: React.FC = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h3 className="text-xl font-bold mb-4">検索条件</h3>
-              
+
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 flex items-center">
+                    <Search size={18} className="mr-2 text-gray-600" />
+                    フリーワード検索
+                  </label>
+                  <input
+                    type="text"
+                    value={keywordSearch}
+                    onChange={(e) => setKeywordSearch(e.target.value)}
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-gray-500 focus:outline-none"
+                    placeholder="名前、ビジネス、スキル、興味など何でも検索..."
+                  />
+                </div>
+
+                <hr className="border-gray-200" />
+
                 <div>
                   <label className="block text-sm font-semibold mb-2 flex items-center">
                     <Briefcase size={18} className="mr-2 text-blue-600" />
@@ -2324,6 +2662,9 @@ const BusinessMatchingApp: React.FC = () => {
                       className="bg-white border-2 border-gray-200 rounded-xl p-5 shadow-md hover:shadow-xl transition-shadow cursor-pointer"
                       onClick={() => {
                         setSelectedUser(user);
+                        setSelectedUserReviews([]);
+                        setReviewComment('');
+                        loadReviews(user.id);
                         setCurrentView('profile');
                       }}
                     >
@@ -2337,12 +2678,25 @@ const BusinessMatchingApp: React.FC = () => {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-xl font-bold">{user.name}</h4>
-                            <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">
-                              {(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-xl font-bold">{user.name}</h4>
+                              {isNewMember(user) && (
+                                <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => handleToggleFavorite(e, user.id)}
+                                className="p-1 hover:scale-110 transition-transform"
+                              >
+                                <Heart size={20} fill={favoriteIds.has(user.id) ? '#ec4899' : 'none'} color={favoriteIds.has(user.id) ? '#ec4899' : '#9ca3af'} />
+                              </button>
+                              <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">
+                                {(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%
+                              </div>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-2 text-sm">
                             <p className="flex items-center text-gray-700">
                               <Briefcase size={16} className="mr-2" />
@@ -2943,7 +3297,7 @@ const BusinessMatchingApp: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <p><strong>ビジネス名:</strong> {selectedUser.businessName}</p>
                   <p><strong>業種:</strong> {selectedUser.industry}</p>
-                  <p><strong>内容:</strong> {(selectedUser as UserProfile & { business?: string }).business ?? selectedUser.businessName ?? ''}</p>
+                  <p><strong>内容:</strong> {linkifyText((selectedUser as UserProfile & { business?: string }).business ?? selectedUser.businessName ?? '')}</p>
                 </div>
               </div>
 

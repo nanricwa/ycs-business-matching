@@ -238,3 +238,44 @@ export async function apiSaveNotificationSettings(settings: Partial<Notification
   });
   return { ...data, ok, status };
 }
+
+/** お気に入り一覧を取得 */
+export async function apiFavorites(): Promise<{ favoriteIds?: number[]; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ favoriteIds?: number[]; error?: string }>('favorites.php', { method: 'GET' });
+  return { ...data, ok, status };
+}
+
+/** お気に入りをトグル（追加/削除） */
+export async function apiToggleFavorite(targetUserId: number): Promise<{ success?: boolean; action?: string; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ success?: boolean; action?: string; error?: string }>('favorites.php', {
+    method: 'POST',
+    body: { targetUserId },
+  });
+  return { ...data, ok, status };
+}
+
+/** レビュー */
+export interface Review {
+  id: number;
+  reviewerId: number;
+  reviewerName: string;
+  reviewerImage: string;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 指定ユーザーのレビュー一覧を取得 */
+export async function apiGetReviews(userId: number): Promise<{ reviews?: Review[]; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ reviews?: Review[]; error?: string }>(`reviews.php?userId=${userId}`, { method: 'GET' });
+  return { ...data, ok, status };
+}
+
+/** レビューを投稿/更新 */
+export async function apiPostReview(targetUserId: number, comment: string): Promise<{ success?: boolean; action?: string; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ success?: boolean; action?: string; error?: string }>('reviews.php', {
+    method: 'POST',
+    body: { targetUserId, comment },
+  });
+  return { ...data, ok, status };
+}
