@@ -1,10 +1,21 @@
 /**
  * API クライアント
- * ベースURLは /match で公開する想定。同一オリジンで /match/api/ を呼ぶ。
+ * - Xserver 上（/match 配下）: 同一オリジンの /match/api を利用
+ * - Vercel (match.ycscampaign.com 等): Xserver API に直接 CORS リクエスト
+ * - ローカル開発: Vite proxy 経由の /api
  */
-const API_BASE = typeof window !== 'undefined' && window.location.pathname.startsWith('/match')
-  ? '/match/api'
-  : '/api';
+function resolveApiBase(): string {
+  if (typeof window === 'undefined') return '/api';
+  // Xserver 上で /match 配下に配置されている場合
+  if (window.location.pathname.startsWith('/match')) return '/match/api';
+  // Vercel デプロイ（match.ycscampaign.com など）→ Xserver に直接 CORS
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://ycscampaign.com/match/api';
+  }
+  // ローカル開発 → Vite proxy
+  return '/api';
+}
+const API_BASE = resolveApiBase();
 
 const TOKEN_KEY = 'ycs_match_token';
 
