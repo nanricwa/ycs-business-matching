@@ -576,15 +576,18 @@ const BusinessMatchingApp: React.FC = () => {
   /** キーワードでメンバーをフィルタリング */
   const filterByKeyword = (users: UserProfile[], keyword: string): UserProfile[] => {
     if (!keyword.trim()) return users;
-    const kw = keyword.toLowerCase();
+    // スペース区切りで複数キーワードAND検索（各キーワードは部分一致）
+    const keywords = keyword.toLowerCase().split(/[\s　]+/).filter(k => k);
+    if (keywords.length === 0) return users;
     return users.filter(u => {
       const fields = [
         u.name, u.businessName, u.industry, u.business,
-        u.message, u.mission,
+        u.businessDescription, u.message, u.mission,
         ...(u.skills || []),
         ...(u.interests || []),
       ];
-      return fields.some(f => f && f.toLowerCase().includes(kw));
+      const text = fields.filter(f => f).map(f => f.toLowerCase()).join(' ');
+      return keywords.every(kw => text.includes(kw));
     });
   };
 
@@ -602,14 +605,43 @@ const BusinessMatchingApp: React.FC = () => {
     );
   };
 
+  /** 2つの文字列が部分一致するか判定（どちらかが他方を含む） */
+  const partialMatch = (a: string, b: string): boolean => {
+    const al = a.toLowerCase();
+    const bl = b.toLowerCase();
+    return al.includes(bl) || bl.includes(al);
+  };
+
+  /** 2つの文字列配列で部分一致する要素数を数える */
+  const countPartialOverlap = (arrA: string[], arrB: string[]): number => {
+    let count = 0;
+    const used = new Set<number>();
+    for (const a of arrA) {
+      for (let i = 0; i < arrB.length; i++) {
+        if (!used.has(i) && partialMatch(a, arrB[i])) {
+          count++;
+          used.add(i);
+          break;
+        }
+      }
+    }
+    return count;
+  };
+
   /** 2ユーザー間のマッチングスコアを計算する */
   const calcMatchScores = (me: UserProfile, other: UserProfile) => {
     // ビジネススコア (0-5): 業種一致 + スキル重複
     let biz = 0;
-    if (me.industry && other.industry && me.industry.toLowerCase() === other.industry.toLowerCase()) biz += 2;
-    const mySkills = (me.skills || []).map(s => s.toLowerCase());
-    const otherSkills = (other.skills || []).map(s => s.toLowerCase());
-    const skillOverlap = mySkills.filter(s => otherSkills.includes(s)).length;
+    if (me.industry && other.industry) {
+      if (me.industry.toLowerCase() === other.industry.toLowerCase()) {
+        biz += 2; // 完全一致
+      } else if (partialMatch(me.industry, other.industry)) {
+        biz += 1; // 部分一致
+      }
+    }
+    const mySkills = (me.skills || []).filter(s => s);
+    const otherSkills = (other.skills || []).filter(s => s);
+    const skillOverlap = countPartialOverlap(mySkills, otherSkills);
     biz += Math.min(skillOverlap, 3); // 最大3点
     biz = Math.min(biz, 5);
 
@@ -630,10 +662,10 @@ const BusinessMatchingApp: React.FC = () => {
     if (me.city && other.city && me.city === other.city) loc += 2;
     loc = Math.min(loc, 5);
 
-    // 趣味スコア (0-5): 興味・関心の重複
-    const myInterests = (me.interests || []).map(s => s.toLowerCase());
-    const otherInterests = (other.interests || []).map(s => s.toLowerCase());
-    const intOverlap = myInterests.filter(s => otherInterests.includes(s)).length;
+    // 趣味スコア (0-5): 興味・関心の重複（部分一致）
+    const myInterests = (me.interests || []).filter(s => s);
+    const otherInterests = (other.interests || []).filter(s => s);
+    const intOverlap = countPartialOverlap(myInterests, otherInterests);
     let intScore = Math.min(intOverlap * 2, 5); // 1つ一致で2点、最大5
 
     // 総合マッチ度 (0-100%)
@@ -1273,6 +1305,9 @@ const BusinessMatchingApp: React.FC = () => {
                     const uploadRes = await apiUploadImage(formData.profileImage);
                     if (uploadRes.ok && uploadRes.url) {
                       body.profileImageUrl = uploadRes.url;
+                    } else {
+                      setApiError(uploadRes.error || '画像のアップロードに失敗しました');
+                      return;
                     }
                   }
 
@@ -1862,6 +1897,9 @@ const BusinessMatchingApp: React.FC = () => {
                         const uploadRes = await apiUploadImage(formData.profileImage);
                         if (uploadRes.ok && uploadRes.url) {
                           imageUrl = uploadRes.url;
+                        } else {
+                          alert(uploadRes.error || '画像のアップロードに失敗しました');
+                          return;
                         }
                       }
 
