@@ -30,7 +30,7 @@ if (!is_dir($uploadDir)) {
 // .htaccess でPHP実行を禁止（セキュリティ）
 $htaccess = $uploadDir . '/.htaccess';
 if (!is_file($htaccess)) {
-    file_put_contents($htaccess, "php_flag engine off\nAddHandler default-handler .php .phtml\n<FilesMatch \"\\.(php|phtml|php3|php4|php5|phps)$\">\n  Deny from all\n</FilesMatch>\n");
+    file_put_contents($htaccess, "<FilesMatch \"\\.(php|phtml|php3|php4|php5|phps)$\">\n  Deny from all\n</FilesMatch>\n");
 }
 
 // ファイルチェック
