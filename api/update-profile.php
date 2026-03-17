@@ -24,12 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $auth = get_authorization_header();
 $token = preg_replace('/^Bearer\s+/i', '', $auth);
 $payload = $token !== '' ? jwt_decode($token) : null;
-if (!$payload || empty($payload['sub'])) {
+if (!$payload || empty($payload['userId'])) {
     ob_end_clean();
     json_response(['error' => 'Unauthorized'], 401);
     exit;
 }
-$userId = (int) $payload['sub'];
+$userId = (int) $payload['userId'];
 
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
