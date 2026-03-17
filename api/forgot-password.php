@@ -28,13 +28,19 @@ if ($email === '' || !str_contains($email, '@')) {
     exit;
 }
 
-$configFile = __DIR__ . '/config.php';
-$siteUrl = '';
-$adminEmail = '';
-if (is_file($configFile)) {
-    $config = require $configFile;
-    $siteUrl = rtrim((string) ($config['SITE_URL'] ?? ''), '/');
-    $adminEmail = trim((string) ($config['ADMIN_EMAIL'] ?? ''));
+// $config は db.php で読み込み済み
+$siteUrl = rtrim((string) ($config['SITE_URL'] ?? ''), '/');
+
+// SITE_URL 未設定時はリクエスト元から推定
+if ($siteUrl === '' && !empty($_SERVER['HTTP_REFERER'])) {
+    $parsed = parse_url($_SERVER['HTTP_REFERER']);
+    if ($parsed && !empty($parsed['host'])) {
+        $scheme = $parsed['scheme'] ?? 'https';
+        $host = $parsed['host'];
+        $port = !empty($parsed['port']) ? ':' . $parsed['port'] : '';
+        $path = rtrim(dirname($parsed['path'] ?? '/'), '/');
+        $siteUrl = $scheme . '://' . $host . $port . $path;
+    }
 }
 
 $stmt = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)');
@@ -65,7 +71,12 @@ if ($siteUrl !== '') {
     ];
     $subject = render_template($ns['password_reset_subject'], $templateVars);
     $bodyText = render_template($ns['password_reset_body'], $templateVars);
-    send_mail($email, $subject, $bodyText);
+    $sent = send_mail($email, $subject, $bodyText);
+    if (!$sent) {
+        error_log('[YCS] Password reset email failed for: ' . $email);
+    }
+} else {
+    error_log('[YCS] Password reset skipped: SITE_URL is empty and could not be detected');
 }
 
 ob_end_clean();
