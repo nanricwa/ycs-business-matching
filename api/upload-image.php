@@ -77,8 +77,12 @@ if (!move_uploaded_file($file['tmp_name'], $destPath)) {
     exit;
 }
 
-// 公開URLを生成（相対パス）
-$url = 'api/uploads/' . $filename;
+// 公開URLを生成（絶対URL — Vercel からも参照できるようにする）
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'ycscampaign.com';
+// __DIR__ からの相対で /match/api/uploads/ を算出
+$scriptDir = dirname($_SERVER['SCRIPT_NAME']); // e.g. /match/api
+$url = $scheme . '://' . $host . $scriptDir . '/uploads/' . $filename;
 
 ob_end_clean();
 json_response(['url' => $url]);
