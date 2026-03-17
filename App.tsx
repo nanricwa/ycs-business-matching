@@ -495,6 +495,7 @@ const BusinessMatchingApp: React.FC = () => {
     }
     if (deleted.length > 0) {
       setAdminUsersList((prev) => prev.filter((u) => !deleted.includes(u.id)));
+      setMembersList((prev) => prev.filter((u) => !deleted.includes(u.id)));
     }
     setSelectedUserIds(new Set());
     setBulkDeleting(false);
@@ -2949,6 +2950,7 @@ const BusinessMatchingApp: React.FC = () => {
                               apiDeleteUser(user.id).then((res) => {
                                 if (res.ok && res.success) {
                                   setAdminUsersList((prev) => prev.filter((u) => u.id !== user.id));
+                                  setMembersList((prev) => prev.filter((u) => u.id !== user.id));
                                   setSelectedUserIds((prev) => { const next = new Set(prev); next.delete(user.id); return next; });
                                 } else {
                                   alert(res.error || '削除に失敗しました');
@@ -3394,6 +3396,7 @@ const BusinessMatchingApp: React.FC = () => {
                         if (res.ok && res.success) {
                           setCurrentView('admin');
                           setSelectedUser(null);
+                          setMembersList((prev) => prev.filter((u) => u.id !== selectedUser.id));
                           apiUsers().then((r) => { if (r.ok && r.users) setAdminUsersList(r.users as UserProfile[]); });
                         } else {
                           alert(res.error || '削除に失敗しました');

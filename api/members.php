@@ -26,8 +26,9 @@ $region = trim((string) ($_GET['region'] ?? ''));
 $skill = trim((string) ($_GET['skill'] ?? ''));
 $interest = trim((string) ($_GET['interest'] ?? ''));
 
-$sql = 'SELECT * FROM users WHERE 1=1';
-$params = [];
+$currentUserId = (int) ($payload['userId'] ?? 0);
+$sql = 'SELECT * FROM users WHERE id != ?';
+$params = [$currentUserId];
 if ($industry !== '') {
     $sql .= ' AND LOWER(industry) LIKE ?';
     $params[] = '%' . mb_strtolower($industry) . '%';
