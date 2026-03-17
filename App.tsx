@@ -1005,7 +1005,7 @@ const BusinessMatchingApp: React.FC = () => {
                     className="mr-3 mt-1"
                   />
                   <label className="text-sm">
-                    <a href="/match/terms.html" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">利用規約</a>に同意します <span className="text-red-500">*</span>
+                    <a href="https://drive.google.com/file/d/15eoJorM8WkiktBv-Q3EACf0pQrYN8DS3/view" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">利用規約</a>に同意します <span className="text-red-500">*</span>
                   </label>
                 </div>
                 <div className="flex items-start">
@@ -1016,7 +1016,7 @@ const BusinessMatchingApp: React.FC = () => {
                     className="mr-3 mt-1"
                   />
                   <label className="text-sm">
-                    <a href="/match/privacy.html" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">プライバシーポリシー</a>に同意します <span className="text-red-500">*</span>
+                    <a href="https://drive.google.com/file/d/1IiJv7gHjXRWeU8FZa_QutxtacsVDYT5n/view" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">プライバシーポリシー</a>に同意します <span className="text-red-500">*</span>
                   </label>
                 </div>
               </div>
