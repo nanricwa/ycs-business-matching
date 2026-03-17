@@ -99,3 +99,22 @@ CREATE TABLE IF NOT EXISTS reviews (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SQL;
 $pdo->exec($createReviewsTable);
+
+// --- マイグレーション: 登録完了メールテンプレートを更新 ---
+$oldWelcomeSubject = '[YCSマッチング] 登録が完了しました';
+$newWelcomeSubject = '[YCSマッチング] ようこそ！登録が完了しました';
+$newWelcomeBody    = "{{name}} 様\n\nYCSマッチングプラットフォームへのご登録ありがとうございます！\nあなたの新しいビジネスパートナーとの出会いが、ここから始まります。\n\n━━━━━━━━━━━━━━━━━━━━━━\n ■ ログイン情報\n━━━━━━━━━━━━━━━━━━━━━━\nログインURL: {{login_url}}\nメールアドレス: {{email}}\n※ パスワードは登録時にご自身で設定されたものをご利用ください\n\n━━━━━━━━━━━━━━━━━━━━━━\n ■ まず最初にやってみましょう\n━━━━━━━━━━━━━━━━━━━━━━\n\n 1. プロフィールを充実させましょう\n    スキルや興味分野を追加すると、\n    あなたにぴったりのメンバーが見つかりやすくなります。\n\n 2. メンバーを検索してみましょう\n    地域・業種・スキルで絞り込んで、\n    気になるメンバーを見つけてください。\n\n 3. マッチングリクエストを送りましょう\n    気になるメンバーが見つかったら、\n    まずはリクエストを送ってみましょう！\n\n━━━━━━━━━━━━━━━━━━━━━━\n\nご不明な点がございましたら、お気軽にお問い合わせください。\n素敵なビジネスマッチングをお楽しみください！\n\n{{signature}}";
+
+try {
+    $stmt = $pdo->prepare('SELECT setting_value FROM notification_settings WHERE setting_key = ?');
+    $stmt->execute(['user_welcome_subject']);
+    $current = $stmt->fetchColumn();
+    // 旧デフォルトのままなら新テンプレートに更新
+    if ($current === $oldWelcomeSubject) {
+        $upd = $pdo->prepare('UPDATE notification_settings SET setting_value = ? WHERE setting_key = ?');
+        $upd->execute([$newWelcomeSubject, 'user_welcome_subject']);
+        $upd->execute([$newWelcomeBody, 'user_welcome_body']);
+    }
+} catch (Throwable $e) {
+    // テーブル未作成・エラー時は無視（デフォルト値が使われる）
+}
