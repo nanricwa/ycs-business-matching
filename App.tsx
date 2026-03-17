@@ -19,6 +19,8 @@ import {
   apiToggleFavorite,
   apiGetReviews,
   apiPostReview,
+  apiUploadImage,
+  apiUpdateProfile,
   type UserProfile as ApiUserProfile,
   type RegisterBody,
   type NotificationSettings,
@@ -1263,8 +1265,16 @@ const BusinessMatchingApp: React.FC = () => {
                     interests: finalInterests,
                     message: formData.message,
                     mission: formData.mission,
-                    profileImageUrl: formData.profileImagePreview && typeof formData.profileImagePreview === 'string' && !formData.profileImagePreview.startsWith('data:') ? formData.profileImagePreview : undefined,
+                    profileImageUrl: undefined as string | undefined,
                   };
+
+                  // 画像がある場合は先にアップロードしてURLを取得
+                  if (formData.profileImage) {
+                    const uploadRes = await apiUploadImage(formData.profileImage);
+                    if (uploadRes.ok && uploadRes.url) {
+                      body.profileImageUrl = uploadRes.url;
+                    }
+                  }
 
                   const regRes = await apiRegister(body);
                   if (!regRes.ok || regRes.error) {
@@ -1845,11 +1855,18 @@ const BusinessMatchingApp: React.FC = () => {
                     キャンセル
                   </button>
                   <button
-                    onClick={() => {
-                      setCurrentUserProfile({
-                        ...currentUserProfile,
+                    onClick={async () => {
+                      // 新しい画像がアップロードされた場合、先にサーバーに送信
+                      let imageUrl: string | undefined;
+                      if (formData.profileImage) {
+                        const uploadRes = await apiUploadImage(formData.profileImage);
+                        if (uploadRes.ok && uploadRes.url) {
+                          imageUrl = uploadRes.url;
+                        }
+                      }
+
+                      const updateRes = await apiUpdateProfile({
                         name: formData.name,
-                        email: formData.email,
                         phone: formData.phone,
                         chatworkId: formData.chatworkId,
                         sns1Type: formData.sns1Type,
@@ -1860,17 +1877,46 @@ const BusinessMatchingApp: React.FC = () => {
                         sns3Account: formData.sns3Account,
                         businessName: formData.businessName,
                         industry: formData.industry,
-                        business: formData.businessDescription,
+                        businessDescription: formData.businessDescription,
                         country: formData.country,
                         region: formData.region,
                         city: formData.city,
-                        location: `${formData.region}・${formData.city}`,
                         skills: formData.skills,
                         interests: formData.interests,
                         message: formData.message,
                         mission: formData.mission,
-                        profileImage: formData.profileImagePreview || currentUserProfile.profileImage
+                        profileImageUrl: imageUrl,
                       });
+
+                      if (updateRes.ok && updateRes.user) {
+                        setCurrentUserProfile(updateRes.user as UserProfile);
+                      } else {
+                        // APIエラー時はローカルのみ更新
+                        setCurrentUserProfile({
+                          ...currentUserProfile,
+                          name: formData.name,
+                          phone: formData.phone,
+                          chatworkId: formData.chatworkId,
+                          sns1Type: formData.sns1Type,
+                          sns1Account: formData.sns1Account,
+                          sns2Type: formData.sns2Type,
+                          sns2Account: formData.sns2Account,
+                          sns3Type: formData.sns3Type,
+                          sns3Account: formData.sns3Account,
+                          businessName: formData.businessName,
+                          industry: formData.industry,
+                          business: formData.businessDescription,
+                          country: formData.country,
+                          region: formData.region,
+                          city: formData.city,
+                          location: `${formData.region}・${formData.city}`,
+                          skills: formData.skills,
+                          interests: formData.interests,
+                          message: formData.message,
+                          mission: formData.mission,
+                          profileImage: formData.profileImagePreview || currentUserProfile.profileImage
+                        });
+                      }
                       setIsEditMode(false);
                     }}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"

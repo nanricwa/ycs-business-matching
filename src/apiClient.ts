@@ -122,8 +122,33 @@ async function request<T>(
   return { data, ok: res.ok, status: res.status };
 }
 
+/** プロフィール画像をアップロードし、保存先URLを返す */
+export async function apiUploadImage(file: File): Promise<{ url?: string; error?: string } & { ok: boolean }> {
+  const formData = new FormData();
+  formData.append('image', file);
+  try {
+    const res = await fetch(`${API_BASE}/upload-image.php`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    return { ...data, ok: res.ok };
+  } catch {
+    return { error: 'Upload failed', ok: false };
+  }
+}
+
 export async function apiRegister(body: RegisterBody): Promise<LoginResponse & { ok: boolean; status: number }> {
   const { data, ok, status } = await request<LoginResponse>('register.php', { method: 'POST', body });
+  return { ...data, ok, status };
+}
+
+/** プロフィール更新（ログインユーザー自身） */
+export async function apiUpdateProfile(body: Partial<RegisterBody> & { profileImageUrl?: string | null }): Promise<{ success?: boolean; user?: UserProfile; error?: string } & { ok: boolean; status: number }> {
+  const { data, ok, status } = await request<{ success?: boolean; user?: UserProfile; error?: string }>('update-profile.php', {
+    method: 'POST',
+    body,
+  });
   return { ...data, ok, status };
 }
 
