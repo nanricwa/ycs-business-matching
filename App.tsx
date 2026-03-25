@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
-import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save, RefreshCw, Trash2 } from 'lucide-react';
+import { Users, Briefcase, MapPin, Heart, Search, MessageCircle, TrendingUp, Plus, X, Shield, Download, User, Edit2, Save, RefreshCw, Trash2, LayoutGrid, LogOut, Menu, SlidersHorizontal } from 'lucide-react';
 import { Footer } from './src/Footer';
 import {
   getStoredToken,
@@ -108,6 +108,8 @@ const BusinessMatchingApp: React.FC = () => {
   const [apiError, setApiError] = useState<string>('');
   const [adminUsersList, setAdminUsersList] = useState<UserProfile[]>([]);
   const [adminRefreshKey, setAdminRefreshKey] = useState<number>(0);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [keywordSearch, setKeywordSearch] = useState<string>('');
   const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
   const [resetToken, setResetToken] = useState<string>('');
@@ -299,6 +301,30 @@ const BusinessMatchingApp: React.FC = () => {
     setSearchResults(results);
   };
 
+  /** スペース区切りのAND検索で部分一致フィルタ */
+  const filterByKeyword = (users: UserProfile[], query: string): UserProfile[] => {
+    const trimmed = query.trim();
+    if (!trimmed) return users;
+    const tokens = trimmed.toLowerCase().split(/\s+/);
+    return users.filter(user => {
+      const haystack = [
+        user.name,
+        user.businessName,
+        user.business,
+        user.industry,
+        user.region,
+        user.city,
+        ...(user.skills || []),
+        ...(user.interests || []),
+        user.message,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return tokens.every(t => haystack.includes(t));
+    });
+  };
+
   const downloadCSV = () => {
     const headers = [
       'ID',
@@ -412,110 +438,117 @@ const BusinessMatchingApp: React.FC = () => {
     return '★'.repeat(s) + '☆'.repeat(5 - s);
   };
 
+  const renderAuthLeftPanel = () => (
+    <div className="hidden lg:flex lg:w-1/2 bg-slate-900 text-white flex-col justify-center px-12">
+      <div className="flex items-center gap-3 mb-12">
+        <div className="w-12 h-12 bg-yellow-400 rounded-lg flex items-center justify-center">
+          <span className="text-slate-900 font-black text-2xl">Y</span>
+        </div>
+        <span className="text-2xl font-bold tracking-tight">YCS Business Network</span>
+      </div>
+      <h1 className="text-5xl font-extrabold leading-tight mb-6">
+        Connect.<br />Collaborate.<br />Grow.
+      </h1>
+      <p className="text-slate-400 text-lg max-w-md">
+        プロフェッショナルのための最高峰ビジネスマッチングプラットフォーム。業界、所在地、そして共有するビジョンに基づいて、最適なパートナーを見つけましょう。
+      </p>
+    </div>
+  );
+
   const renderWelcomeView = () => (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 text-white p-6">
-      <div className="text-center mb-12">
-        <h1 className="text-6xl font-bold mb-4">YCS</h1>
-        <h2 className="text-xl sm:text-3xl font-bold mb-6">マッチングプラットフォーム</h2>
-        <p className="text-xl opacity-90 mb-2">ビジネス × 居住地 × 趣味</p>
-        <p className="text-lg opacity-80">3つの軸で最適なパートナーを見つけよう</p>
-      </div>
-
-      <div className="space-y-4 w-full max-w-md mb-12">
-        <button 
-          onClick={() => {
-            setPasswordError('');
-            setShowPassword(false);
-            setCurrentView('register');
-          }}
-          className="w-full bg-white text-purple-600 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
-        >
-          新規登録（無料）
-        </button>
-        <button 
-          onClick={() => {
-            setPasswordError('');
-            setApiError('');
-            setCurrentView('login');
-          }}
-          className="w-full bg-transparent border-2 border-white text-white py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-purple-600 transition-all"
-        >
-          ログイン
-        </button>
-        <div className="text-center py-2">
-          <button 
-            onClick={() => setCurrentView('forgot-password')}
-            className="text-white text-sm hover:text-gray-200 underline font-semibold"
-          >
-            パスワードを忘れた方はこちら
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-8 max-w-3xl mb-8">
-        <div className="text-center">
-          <Briefcase size={48} className="mx-auto mb-2" />
-          <p className="font-semibold">ビジネス連携</p>
-        </div>
-        <div className="text-center">
-          <MapPin size={48} className="mx-auto mb-2" />
-          <p className="font-semibold">地域交流</p>
-        </div>
-        <div className="text-center">
-          <Heart size={48} className="mx-auto mb-2" />
-          <p className="font-semibold">趣味でつながる</p>
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+      {renderAuthLeftPanel()}
+      <div className="flex-1 flex items-center justify-center bg-white p-6">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
+            <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
+              <span className="text-slate-900 font-black text-xl">Y</span>
+            </div>
+            <span className="text-xl font-bold tracking-tight text-gray-900">YCS Business Network</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Welcome</h2>
+          <p className="text-sm text-gray-500 mb-8 text-center">ビジネスネットワークに参加しましょう</p>
+          <div className="space-y-4">
+            <button
+              onClick={() => { setPasswordError(''); setApiError(''); setCurrentView('login'); }}
+              className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => { setPasswordError(''); setShowPassword(false); setCurrentView('register'); }}
+              className="w-full bg-white border border-gray-300 text-gray-700 py-3.5 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+            >
+              新規登録（無料）
+            </button>
+            <div className="text-center pt-2">
+              <button onClick={() => setCurrentView('forgot-password')} className="text-indigo-600 text-sm hover:text-indigo-500 font-medium">
+                パスワードを忘れた方はこちら
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderLoginView = () => (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 text-white p-6">
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-gray-800">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-2">ログイン</h2>
-          <p className="text-sm text-gray-600">メールアドレスとパスワードを入力してください</p>
-        </div>
-        {apiError && <p className="text-red-600 text-sm mb-4">{apiError}</p>}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const email = (e.currentTarget.elements.namedItem('email') as HTMLInputElement).value.trim();
-            const password = (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
-            if (!email || !password) {
-              setApiError('メールアドレスとパスワードを入力してください');
-              return;
-            }
-            setApiError('');
-            apiLogin(email, password).then((res) => {
-              if (res.ok && res.token && res.user) {
-                setStoredToken(res.token);
-                setIsLoggedIn(true);
-                setCurrentUserProfile(res.user as UserProfile);
-                setIsAdmin((res.user as ApiUserProfile).role === 'admin');
-                setCurrentView('home');
-              } else {
-                setApiError(res.error || 'ログインに失敗しました');
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+      {renderAuthLeftPanel()}
+      <div className="flex-1 flex items-center justify-center bg-white p-6">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
+            <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
+              <span className="text-slate-900 font-black text-xl">Y</span>
+            </div>
+            <span className="text-xl font-bold tracking-tight text-gray-900">YCS Business Network</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Sign in</h2>
+          <p className="text-sm text-gray-500 mb-8">Enter your credentials to access the network.</p>
+          {apiError && <p className="text-red-600 text-sm mb-4">{apiError}</p>}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const email = (e.currentTarget.elements.namedItem('email') as HTMLInputElement).value.trim();
+              const password = (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
+              if (!email || !password) {
+                setApiError('メールアドレスとパスワードを入力してください');
+                return;
               }
-            });
-          }}
-          className="space-y-4"
-        >
-          <div>
-            <label className="block text-sm font-semibold mb-2">メールアドレス</label>
-            <input name="email" type="email" required className="w-full p-3 border-2 border-gray-300 rounded-lg" placeholder="example@email.com" />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">パスワード</label>
-            <input name="password" type="password" required className="w-full p-3 border-2 border-gray-300 rounded-lg" placeholder="パスワード" />
-          </div>
-          <button type="submit" className="w-full bg-purple-600 text-white py-4 rounded-lg font-bold hover:bg-purple-700">
-            ログイン
-          </button>
-        </form>
-        <button onClick={() => { setApiError(''); setCurrentView('welcome'); }} className="w-full mt-4 text-gray-600 text-sm hover:underline">
-          トップに戻る
-        </button>
+              setApiError('');
+              apiLogin(email, password).then((res) => {
+                if (res.ok && res.token && res.user) {
+                  setStoredToken(res.token);
+                  setIsLoggedIn(true);
+                  setCurrentUserProfile(res.user as UserProfile);
+                  setIsAdmin((res.user as ApiUserProfile).role === 'admin');
+                  setCurrentView('home');
+                } else {
+                  setApiError(res.error || 'ログインに失敗しました');
+                }
+              });
+            }}
+            className="space-y-5"
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+              <input name="email" type="email" required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="demo@example.com" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <input name="password" type="password" required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="••••••••" />
+            </div>
+            <button type="submit" className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors">
+              Sign In
+            </button>
+          </form>
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Don't have an account?{' '}
+            <button onClick={() => { setApiError(''); setCurrentView('register'); }} className="text-indigo-600 hover:text-indigo-500 font-medium">
+              Request access
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -562,13 +595,15 @@ const BusinessMatchingApp: React.FC = () => {
     };
 
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+        {renderAuthLeftPanel()}
+        <div className="flex-1 flex items-start justify-center bg-white p-6 overflow-y-auto">
+        <div className="w-full max-w-lg py-4">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">新規登録</h2>
-            <button 
+            <h2 className="text-2xl font-bold text-gray-900">新規登録</h2>
+            <button
               onClick={() => setCurrentView('welcome')}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-400 hover:text-gray-600"
             >
               <X size={24} />
             </button>
@@ -579,12 +614,12 @@ const BusinessMatchingApp: React.FC = () => {
               {[1, 2, 3].map(step => (
                 <div key={step} className="flex items-center">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                    registrationStep >= step ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-500'
+                    registrationStep >= step ? 'bg-slate-800 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     {step}
                   </div>
                   {step < 3 && (
-                    <div className={`w-20 h-1 ${registrationStep > step ? 'bg-purple-600' : 'bg-gray-200'}`} />
+                    <div className={`w-20 h-1 ${registrationStep > step ? 'bg-indigo-500' : 'bg-gray-200'}`} />
                   )}
                 </div>
               ))}
@@ -615,10 +650,10 @@ const BusinessMatchingApp: React.FC = () => {
                     {formData.profileImagePreview ? (
                       <img src={formData.profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-6xl text-gray-400">👤</span>
+                      <User size={48} className="text-gray-300" />
                     )}
                   </div>
-                  <label className="absolute bottom-0 right-0 bg-purple-600 text-white rounded-full p-2 cursor-pointer hover:bg-purple-700 transition-colors">
+                  <label className="absolute bottom-0 right-0 bg-slate-800 text-white rounded-full p-2 cursor-pointer hover:bg-slate-700 transition-colors">
                     <Plus size={20} />
                     <input 
                       type="file" 
@@ -638,7 +673,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="山田 太郎"
                 />
               </div>
@@ -650,7 +685,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="example@email.com"
                 />
               </div>
@@ -662,7 +697,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="8文字以上"
                 />
                 <p className="text-xs text-gray-500 mt-1">8文字以上で設定してください</p>
@@ -675,7 +710,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="passwordConfirm"
                   value={formData.passwordConfirm}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="もう一度入力してください"
                 />
                 {passwordError && (
@@ -700,7 +735,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="090-1234-5678"
                 />
               </div>
@@ -711,7 +746,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="chatworkId"
                   value={formData.chatworkId}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="your_chatwork_id"
                 />
               </div>
@@ -721,7 +756,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="mission"
                   value={formData.mission}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none h-24"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none h-24"
                   placeholder="あなたのビジネスの価値観やミッション、大切にしていることを入力してください..."
                 />
                 <p className="text-xs text-gray-500 mt-1">ビジネスで大切にしている価値観や目指していることを教えてください</p>
@@ -736,7 +771,7 @@ const BusinessMatchingApp: React.FC = () => {
                         name={`sns${num}Type`}
                         value={formData[`sns${num}Type`]}
                         onChange={handleInputChange}
-                        className="p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                        className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                       >
                         <option value="">SNS選択</option>
                         <option value="𝕏 (Twitter)">𝕏 (Twitter)</option>
@@ -754,7 +789,7 @@ const BusinessMatchingApp: React.FC = () => {
                         name={`sns${num}Account`}
                         value={formData[`sns${num}Account`]}
                         onChange={handleInputChange}
-                        className="col-span-2 p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                        className="col-span-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                         placeholder="アカウント名またはURL"
                         disabled={!formData[`sns${num}Type`]}
                       />
@@ -800,7 +835,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="businessName"
                   value={formData.businessName}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                   placeholder="株式会社〇〇"
                 />
               </div>
@@ -810,7 +845,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="industry"
                   value={formData.industry}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="">選択してください</option>
                   <option value="it">IT・テクノロジー</option>
@@ -827,7 +862,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="businessDescription"
                   value={formData.businessDescription}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none h-24"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none h-24"
                   placeholder="どんなビジネスをされていますか？"
                 />
               </div>
@@ -845,7 +880,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="country"
                     value={formData.country}
                     onChange={handleInputChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                     placeholder="日本"
                   />
                 </div>
@@ -856,7 +891,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="region"
                     value={formData.region}
                     onChange={handleInputChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                     placeholder="東京都"
                   />
                 </div>
@@ -867,7 +902,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                     placeholder="港区"
                   />
                 </div>
@@ -880,7 +915,7 @@ const BusinessMatchingApp: React.FC = () => {
                     type="text"
                     value={tempSkill}
                     onChange={(e) => setTempSkill(e.target.value)}
-                    className="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                     placeholder="例：Webマーケティング"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
@@ -894,14 +929,14 @@ const BusinessMatchingApp: React.FC = () => {
                       addSkill(tempSkill);
                       setTempSkill('');
                     }}
-                    className="bg-purple-600 text-white px-4 rounded-lg hover:bg-purple-700"
+                    className="bg-slate-800 text-white px-4 rounded-lg hover:bg-slate-700"
                   >
                     <Plus size={20} />
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {formData.skills.map((skill, idx) => (
-                    <span key={idx} className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                    <span key={idx} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
                       {skill}
                       <button onClick={() => removeSkill(skill)} className="hover:text-purple-900">
                         <X size={14} />
@@ -918,7 +953,7 @@ const BusinessMatchingApp: React.FC = () => {
                     type="text"
                     value={tempInterest}
                     onChange={(e) => setTempInterest(e.target.value)}
-                    className="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                     placeholder="例：DX推進"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
@@ -932,7 +967,7 @@ const BusinessMatchingApp: React.FC = () => {
                       addInterest(tempInterest);
                       setTempInterest('');
                     }}
-                    className="bg-purple-600 text-white px-4 rounded-lg hover:bg-purple-700"
+                    className="bg-slate-800 text-white px-4 rounded-lg hover:bg-slate-700"
                   >
                     <Plus size={20} />
                   </button>
@@ -955,7 +990,7 @@ const BusinessMatchingApp: React.FC = () => {
                   name="message"
                   value={formData.message}
                   onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none h-32"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none h-32"
                   placeholder="他のメンバーに向けて、自己紹介やつながりたい内容などを自由に入力してください..."
                 />
                 <p className="text-xs text-gray-500 mt-1">このメッセージは他のメンバーがあなたのプロフィールを見た際に表示されます</p>
@@ -975,7 +1010,7 @@ const BusinessMatchingApp: React.FC = () => {
             {registrationStep < 3 ? (
               <button 
                 onClick={handleNextStep}
-                className="flex-1 bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors"
+                className="flex-1 bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 transition-colors"
               >
                 次へ
               </button>
@@ -1049,166 +1084,153 @@ const BusinessMatchingApp: React.FC = () => {
                     setCurrentView('registration-complete');
                   }
                 }}
-                className="flex-1 bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors"
+                className="flex-1 bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 transition-colors"
               >
                 登録完了
               </button>
             )}
           </div>
         </div>
+        </div>
       </div>
     );
   };
 
   const renderRegistrationCompleteView = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 p-6">
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
-        <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-3xl font-bold mb-4 text-gray-800">登録完了！</h2>
-        <p className="text-gray-600 mb-6">
-          YCSマッチングプラットフォームへようこそ！<br />
-          登録が完了しました。
-        </p>
-        
-        <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
-          <h3 className="font-bold mb-3 text-gray-800">ログイン情報</h3>
-          <div className="space-y-2 text-sm">
-            <div>
-              <span className="text-gray-600">メールアドレス:</span>
-              <p className="font-semibold text-gray-800">{formData.email}</p>
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+      {renderAuthLeftPanel()}
+      <div className="flex-1 flex items-center justify-center bg-white p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="text-6xl mb-4">✅</div>
+          <h2 className="text-3xl font-bold mb-4 text-gray-900">登録完了！</h2>
+          <p className="text-gray-600 mb-6">
+            YCSマッチングプラットフォームへようこそ！<br />
+            登録が完了しました。
+          </p>
+
+          <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
+            <h3 className="font-bold mb-3 text-gray-800">ログイン情報</h3>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-gray-600">メールアドレス:</span>
+                <p className="font-semibold text-gray-800">{formData.email}</p>
+              </div>
+              <div>
+                <span className="text-gray-600">パスワード:</span>
+                <p className="font-semibold text-gray-800">設定済み（●●●●●●●●）</p>
+              </div>
             </div>
-            <div>
-              <span className="text-gray-600">パスワード:</span>
-              <p className="font-semibold text-gray-800">設定済み（●●●●●●●●）</p>
-            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              ※ この情報は大切に保管してください
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-3">
-            ※ この情報は大切に保管してください
-          </p>
-        </div>
 
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-left">
-          <p className="text-sm text-blue-800">
-            📧 確認メールを <strong>{formData.email}</strong> に送信しました。<br />
-            登録内容とログイン方法を記載しています。このメールアドレスとパスワードで、トップの「ログイン」からログインできます。
-          </p>
-        </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-left">
+            <p className="text-sm text-gray-700">
+              確認メールを <strong>{formData.email}</strong> に送信しました。<br />
+              登録内容とログイン方法を記載しています。このメールアドレスとパスワードで、トップの「ログイン」からログインできます。
+            </p>
+          </div>
 
-        <button
-          onClick={() => setCurrentView('home')}
-          className="w-full bg-purple-600 text-white py-4 rounded-lg font-bold hover:bg-purple-700 transition-colors"
-        >
-          マッチングを始める
-        </button>
+          <button
+            onClick={() => setCurrentView('home')}
+            className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors"
+          >
+            マッチングを始める
+          </button>
+        </div>
       </div>
     </div>
   );
 
   const renderForgotPasswordView = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 p-6">
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-        <div className="text-center mb-6">
-          <div className="text-5xl mb-4">🔐</div>
-          <h2 className="text-3xl font-bold mb-2 text-gray-800">パスワードを忘れた方</h2>
-          <p className="text-gray-600 text-sm">
-            登録されているメールアドレスを入力してください。<br />
-            パスワード再設定用のリンクをお送りします。
-          </p>
-        </div>
-
-        {apiError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{apiError}</div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-2">メールアドレス</label>
-            <input 
-              type="email"
-              value={resetEmail}
-              onChange={(e) => { setResetEmail(e.target.value); setApiError(''); }}
-              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
-              placeholder="example@email.com"
-            />
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+      {renderAuthLeftPanel()}
+      <div className="flex-1 flex items-center justify-center bg-white p-6">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold mb-1 text-gray-900">パスワードを忘れた方</h2>
+            <p className="text-gray-500 text-sm">
+              登録されているメールアドレスを入力してください。<br />
+              パスワード再設定用のリンクをお送りします。
+            </p>
           </div>
 
-          <button
-            disabled={forgotPasswordLoading}
-            onClick={async () => {
-              if (!resetEmail) {
-                setApiError('メールアドレスを入力してください');
-                return;
-              }
-              if (!resetEmail.includes('@')) {
-                setApiError('正しいメールアドレスを入力してください');
-                return;
-              }
-              setApiError('');
-              setForgotPasswordLoading(true);
-              const res = await apiForgotPassword(resetEmail);
-              setForgotPasswordLoading(false);
-              if (res.ok) {
-                setCurrentView('reset-link-sent');
-              } else {
-                setApiError(res.error || '送信に失敗しました');
-              }
-            }}
-            className="w-full bg-purple-600 text-white py-4 rounded-lg font-bold hover:bg-purple-700 transition-colors disabled:opacity-50"
-          >
-            {forgotPasswordLoading ? '送信中...' : '再設定リンクを送信'}
-          </button>
+          {apiError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{apiError}</div>
+          )}
 
-          <button
-            onClick={() => {
-              setResetEmail('');
-              setCurrentView('welcome');
-            }}
-            className="w-full bg-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-400 transition-colors"
-          >
-            ログイン画面に戻る
-          </button>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">メールアドレス</label>
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => { setResetEmail(e.target.value); setApiError(''); }}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                placeholder="example@email.com"
+              />
+            </div>
+
+            <button
+              disabled={forgotPasswordLoading}
+              onClick={async () => {
+                if (!resetEmail) { setApiError('メールアドレスを入力してください'); return; }
+                if (!resetEmail.includes('@')) { setApiError('正しいメールアドレスを入力してください'); return; }
+                setApiError('');
+                setForgotPasswordLoading(true);
+                const res = await apiForgotPassword(resetEmail);
+                setForgotPasswordLoading(false);
+                if (res.ok) { setCurrentView('reset-link-sent'); } else { setApiError(res.error || '送信に失敗しました'); }
+              }}
+              className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors disabled:opacity-50"
+            >
+              {forgotPasswordLoading ? '送信中...' : '再設定リンクを送信'}
+            </button>
+
+            <button onClick={() => { setResetEmail(''); setCurrentView('welcome'); }} className="w-full bg-white border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+              ログイン画面に戻る
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderResetLinkSentView = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 p-6">
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
-        <div className="text-6xl mb-4">📧</div>
-        <h2 className="text-3xl font-bold mb-4 text-gray-800">メールを送信しました</h2>
-        <p className="text-gray-600 mb-6">
-          <strong>{resetEmail}</strong> 宛に<br />
-          パスワード再設定用のリンクを送信しました。
-        </p>
-        
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-left">
-          <p className="text-sm text-blue-800 mb-2">
-            <strong>次の手順：</strong>
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+      {renderAuthLeftPanel()}
+      <div className="flex-1 flex items-center justify-center bg-white p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <MessageCircle size={28} className="text-gray-500" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">メールを送信しました</h2>
+          <p className="text-gray-600 mb-6">
+            <strong>{resetEmail}</strong> 宛に<br />
+            パスワード再設定用のリンクを送信しました。
           </p>
-          <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-            <li>メールボックスを確認してください</li>
-            <li>メール内のリンクをクリック</li>
-            <li>新しいパスワードを設定</li>
-          </ol>
-        </div>
 
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 text-left">
-          <p className="text-xs text-yellow-800">
-            ⚠️ メールが届かない場合は、迷惑メールフォルダもご確認ください。<br />
-            リンクの有効期限は1時間です。
-          </p>
-        </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-left">
+            <p className="text-sm text-gray-700 mb-2"><strong>次の手順：</strong></p>
+            <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+              <li>メールボックスを確認してください</li>
+              <li>メール内のリンクをクリック</li>
+              <li>新しいパスワードを設定</li>
+            </ol>
+          </div>
 
-        <button
-          onClick={() => {
-            setResetEmail('');
-            setCurrentView('welcome');
-          }}
-          className="w-full text-gray-600 text-sm hover:underline"
-        >
-          ログイン画面に戻る
-        </button>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-left">
+            <p className="text-xs text-gray-600">
+              ⚠️ メールが届かない場合は、迷惑メールフォルダもご確認ください。<br />
+              リンクの有効期限は1時間です。
+            </p>
+          </div>
+
+          <button onClick={() => { setResetEmail(''); setCurrentView('welcome'); }} className="text-indigo-600 text-sm hover:text-indigo-500 font-medium">
+            ログイン画面に戻る
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1229,100 +1251,84 @@ const BusinessMatchingApp: React.FC = () => {
 
     if (!resetToken) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 p-6">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
-            <div className="text-5xl mb-4">🔑</div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">無効なリンクです</h2>
-            <p className="text-gray-600 mb-6">
-              パスワード再設定は、メールでお送りしたリンクから行ってください。<br />
-              リンクの有効期限は1時間です。
-            </p>
-            <button onClick={() => setCurrentView('welcome')} className="w-full bg-purple-600 text-white py-4 rounded-lg font-bold hover:bg-purple-700">
-              トップに戻る
-            </button>
+        <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+          {renderAuthLeftPanel()}
+          <div className="flex-1 flex items-center justify-center bg-white p-6">
+            <div className="w-full max-w-md text-center">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">無効なリンクです</h2>
+              <p className="text-gray-600 mb-6">
+                パスワード再設定は、メールでお送りしたリンクから行ってください。<br />
+                リンクの有効期限は1時間です。
+              </p>
+              <button onClick={() => setCurrentView('welcome')} className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700">
+                トップに戻る
+              </button>
+            </div>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 p-6">
-        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-          <div className="text-center mb-6">
-            <div className="text-5xl mb-4">🔑</div>
-            <h2 className="text-3xl font-bold mb-2 text-gray-800">新しいパスワードを設定</h2>
-            <p className="text-gray-600 text-sm">
-              8文字以上の新しいパスワードを入力してください
-            </p>
-          </div>
-
-          {apiError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{apiError}</div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold mb-2">新しいパスワード</label>
-              <input 
-                type={showPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => { setNewPassword(e.target.value); setApiError(''); }}
-                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
-                placeholder="8文字以上"
-              />
+      <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+        {renderAuthLeftPanel()}
+        <div className="flex-1 flex items-center justify-center bg-white p-6">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-1 text-gray-900">新しいパスワードを設定</h2>
+              <p className="text-gray-500 text-sm">8文字以上の新しいパスワードを入力してください</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold mb-2">新しいパスワード（確認）</label>
-              <input 
-                type={showPassword ? "text" : "password"}
-                value={newPasswordConfirm}
-                onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
-                placeholder="もう一度入力してください"
-              />
-              {passwordError && (
-                <p className="text-xs text-red-600 mt-1">{passwordError}</p>
-              )}
-            </div>
+            {apiError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{apiError}</div>
+            )}
 
-            <div className="flex items-center">
-              <input 
-                type="checkbox"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
-                className="mr-2"
-              />
-              <label className="text-sm">パスワードを表示する</label>
-            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">新しいパスワード</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setApiError(''); }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  placeholder="8文字以上"
+                />
+              </div>
 
-            <button
-              disabled={resetPasswordLoading}
-              onClick={async () => {
-                if (!newPassword || !newPasswordConfirm) {
-                  setApiError('すべての項目を入力してください');
-                  return;
-                }
-                if (!validatePassword()) {
-                  return;
-                }
-                setApiError('');
-                setResetPasswordLoading(true);
-                const res = await apiResetPassword(resetToken, newPassword);
-                setResetPasswordLoading(false);
-                if (res.ok && res.success !== false) {
-                  setResetToken('');
-                  setNewPassword('');
-                  setNewPasswordConfirm('');
-                  setCurrentView('password-reset-complete');
-                } else {
-                  setApiError(res.error || 'パスワードの変更に失敗しました');
-                }
-              }}
-              className="w-full bg-purple-600 text-white py-4 rounded-lg font-bold hover:bg-purple-700 transition-colors disabled:opacity-50"
-            >
-              {resetPasswordLoading ? '変更中...' : 'パスワードを変更する'}
-            </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">新しいパスワード（確認）</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  placeholder="もう一度入力してください"
+                />
+                {passwordError && <p className="text-xs text-red-600 mt-1">{passwordError}</p>}
+              </div>
+
+              <div className="flex items-center">
+                <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} className="mr-2" />
+                <label className="text-sm text-gray-600">パスワードを表示する</label>
+              </div>
+
+              <button
+                disabled={resetPasswordLoading}
+                onClick={async () => {
+                  if (!newPassword || !newPasswordConfirm) { setApiError('すべての項目を入力してください'); return; }
+                  if (!validatePassword()) return;
+                  setApiError('');
+                  setResetPasswordLoading(true);
+                  const res = await apiResetPassword(resetToken, newPassword);
+                  setResetPasswordLoading(false);
+                  if (res.ok && res.success !== false) { setResetToken(''); setNewPassword(''); setNewPasswordConfirm(''); setCurrentView('password-reset-complete'); }
+                  else { setApiError(res.error || 'パスワードの変更に失敗しました'); }
+                }}
+                className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                {resetPasswordLoading ? '変更中...' : 'パスワードを変更する'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1330,33 +1336,31 @@ const BusinessMatchingApp: React.FC = () => {
   };
 
   const renderPasswordResetCompleteView = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 p-6">
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
-        <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-3xl font-bold mb-4 text-gray-800">パスワードを変更しました</h2>
-        <p className="text-gray-600 mb-6">
-          パスワードの変更が完了しました。<br />
-          新しいパスワードでログインしてください。
-        </p>
-        
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 text-left">
-          <p className="text-sm text-green-800">
-            ✓ パスワードが正常に変更されました<br />
-            ✓ 次回ログイン時から新しいパスワードをご利用ください
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+      {renderAuthLeftPanel()}
+      <div className="flex-1 flex items-center justify-center bg-white p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="text-6xl mb-4">✅</div>
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">パスワードを変更しました</h2>
+          <p className="text-gray-600 mb-6">
+            パスワードの変更が完了しました。<br />
+            新しいパスワードでログインしてください。
           </p>
-        </div>
 
-        <button
-          onClick={() => {
-            setResetEmail('');
-            setNewPassword('');
-            setNewPasswordConfirm('');
-            setCurrentView('welcome');
-          }}
-          className="w-full bg-purple-600 text-white py-4 rounded-lg font-bold hover:bg-purple-700 transition-colors"
-        >
-          ログイン画面へ
-        </button>
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 text-left">
+            <p className="text-sm text-green-800">
+              ✓ パスワードが正常に変更されました<br />
+              ✓ 次回ログイン時から新しいパスワードをご利用ください
+            </p>
+          </div>
+
+          <button
+            onClick={() => { setResetEmail(''); setNewPassword(''); setNewPasswordConfirm(''); setCurrentView('welcome'); }}
+            className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors"
+          >
+            ログイン画面へ
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1379,354 +1383,387 @@ const BusinessMatchingApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="flex-1">
+    <div className="min-h-screen flex bg-gray-50">
+      {/* Sidebar */}
       {isLoggedIn && (
-        <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-          <div className="max-w-2xl mx-auto px-4 py-3 flex justify-between items-center">
-            <span className="font-bold text-gray-800">YCS マッチング</span>
-            <div className="flex items-center gap-2">
+        <>
+          <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-800">
+              <div className="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-slate-900 font-black text-lg">Y</span>
+              </div>
+              <span className="text-lg font-bold tracking-tight">YCS Business Network</span>
+              <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto sidebar-scroll">
+              <button onClick={() => { setCurrentView('home'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${currentView === 'home' || currentView === 'profile' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+                <LayoutGrid size={20} />
+                Directory
+              </button>
+              <button onClick={() => { setCurrentView('mypage'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${currentView === 'mypage' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+                <User size={20} />
+                My Profile
+              </button>
               {isAdmin && (
-                <button
-                  onClick={() => setCurrentView('admin')}
-                  className="text-sm font-semibold text-amber-600 hover:text-amber-800 px-3 py-2 rounded-lg hover:bg-amber-50 transition-colors flex items-center gap-1"
-                >
-                  <Shield size={16} />
-                  管理画面
+                <button onClick={() => { setCurrentView('admin'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${['admin', 'admin-settings', 'admin-detail'].includes(currentView) ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+                  <Shield size={20} />
+                  Admin
                 </button>
               )}
-              <button
-                onClick={handleLogout}
-                className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                ログアウト
+            </nav>
+            <div className="px-3 py-4 border-t border-slate-800">
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                <LogOut size={20} />
+                Sign Out
               </button>
             </div>
-          </div>
-        </header>
+          </aside>
+          {sidebarOpen && <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        </>
       )}
-      {currentView === 'home' && (
-        <div className="p-4 max-w-2xl mx-auto">
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center overflow-hidden">
-                    {currentUserProfile?.profileImage ? (
-                      <img src={currentUserProfile.profileImage} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-4xl">👤</span>
-                    )}
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">ようこそ!</h2>
-                    <p className="text-sm opacity-90">{currentUserProfile?.name || 'ゲスト'}さん</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <Users className="mr-2" size={24} />
-                おすすめマッチ
-              </h3>
-              {membersLoading ? (
-                <p className="text-gray-600">読み込み中...</p>
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-h-screen overflow-auto">
+        {/* Mobile top bar */}
+        {isLoggedIn && (
+          <div className="lg:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <button onClick={() => setSidebarOpen(true)} className="text-gray-600 hover:text-gray-900">
+              <Menu size={24} />
+            </button>
+            <span className="font-bold text-gray-800">YCS Business Network</span>
+            <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+              {currentUserProfile?.profileImage ? (
+                <img src={currentUserProfile.profileImage} alt="" className="w-full h-full object-cover" />
               ) : (
-              <div className="space-y-4">
-                {membersList.filter(u => u.id !== currentUserProfile?.id).map(user => (
-                  <div 
-                    key={user.id}
-                    className="bg-white border-2 border-gray-200 rounded-xl p-5 shadow-md hover:shadow-xl transition-shadow cursor-pointer"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setCurrentView('profile');
-                    }}
-                  >
-                    <div className="flex items-start space-x-4">
-                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                        {(user.profileImage ?? (user as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
-                          <img src={(user.profileImage ?? (user as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={user.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-4xl">{(user as UserProfile & { image?: string }).image ?? '👤'}</div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-xl font-bold">{user.name}</h4>
-                          <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">
-                            {(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm">
-                          <p className="flex items-center text-gray-700">
-                            <Briefcase size={16} className="mr-2" />
-                            {(user as UserProfile & { business?: string }).business ?? user.businessName ?? ''}
-                          </p>
-                          <p className="flex items-center text-gray-700">
-                            <MapPin size={16} className="mr-2" />
-                            {(user as UserProfile & { location?: string }).location ?? `${user.region}・${user.city}`}（{(user as UserProfile & { distance?: string }).distance ?? '—'}）
-                          </p>
-                          {user.message && (
-                            <p className="text-gray-600 italic mt-2 pt-2 border-t">
-                              💬 "{user.message.substring(0, 80)}{user.message.length > 80 ? '...' : ''}"
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="mt-3 pt-3 border-t">
-                          <div className="flex justify-between text-sm">
-                            <span>ビジネス {renderStars((user as UserProfile & { businessScore?: number }).businessScore)}</span>
-                            <span>近隣性 {renderStars((user as UserProfile & { locationScore?: number }).locationScore)}</span>
-                            <span>趣味 {renderStars((user as UserProfile & { interestScore?: number }).interestScore)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={16} /></div>
               )}
             </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <button 
-                onClick={() => setCurrentView('mypage')}
-                className="bg-orange-500 text-white py-4 rounded-lg font-bold hover:bg-orange-600 transition-colors flex flex-col items-center"
-              >
-                <User size={24} className="mb-1" />
-                <span>マイページ</span>
-              </button>
-              <button 
-                onClick={() => setCurrentView('search')}
-                className="bg-blue-500 text-white py-4 rounded-lg font-bold hover:bg-blue-600 transition-colors flex flex-col items-center"
-              >
-                <Search size={24} className="mb-1" />
-                <span>検索</span>
-              </button>
+          </div>
+        )}
+      {currentView === 'home' && (
+        <div className="p-6 lg:p-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Network Directory</h1>
+              <p className="text-sm text-gray-500 mt-1">Find and connect with business professionals.</p>
+            </div>
+            <div className="hidden lg:block w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
+              {currentUserProfile?.profileImage ? (
+                <img src={currentUserProfile.profileImage} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={20} /></div>
+              )}
             </div>
           </div>
+
+          {/* Search bar */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 relative">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={keywordSearch}
+                onChange={(e) => setKeywordSearch(e.target.value)}
+                placeholder="Search by name, industry, skill..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              />
+            </div>
+            <button onClick={() => setCurrentView('search')} className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
+              <SlidersHorizontal size={18} />
+            </button>
+          </div>
+
+          {/* Table */}
+          {membersLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw size={24} className="animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50/50">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Professional</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Industry & Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Match Score</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filterByKeyword(membersList, keywordSearch).filter(u => u.id !== currentUserProfile?.id).map(user => (
+                    <tr
+                      key={user.id}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => { setSelectedUser(user); setCurrentView('profile'); }}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                            {(user.profileImage ?? (user as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
+                              <img src={(user.profileImage ?? (user as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={user.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={20} /></div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                            <p className="text-xs text-gray-500">{user.businessName}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        <p className="text-sm font-medium text-gray-900">{user.industry}</p>
+                        <p className="text-xs text-gray-500 truncate max-w-[200px]">{(user as UserProfile & { business?: string }).business ?? ''}</p>
+                      </td>
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                          <MapPin size={14} className="text-gray-400 flex-shrink-0" />
+                          <span>{user.region}{user.city ? `・${user.city}` : ''}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-600">{(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden lg:table-cell">
+                        <button className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">View</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {currentView === 'mypage' && currentUserProfile && (
-        <div className="p-4 max-w-2xl mx-auto">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <button 
-                onClick={() => setCurrentView('home')}
-                className="text-blue-600 hover:text-blue-800 font-semibold"
-              >
-                ← ホームに戻る
-              </button>
-              {!isEditMode ? (
-                <button
-                  onClick={() => {
-                    setIsEditMode(true);
-                    setFormData({
-                      ...formData,
-                      name: currentUserProfile.name,
-                      email: currentUserProfile.email,
-                      phone: currentUserProfile.phone,
-                      chatworkId: currentUserProfile.chatworkId,
-                      sns1Type: currentUserProfile.sns1Type,
-                      sns1Account: currentUserProfile.sns1Account,
-                      sns2Type: currentUserProfile.sns2Type,
-                      sns2Account: currentUserProfile.sns2Account,
-                      sns3Type: currentUserProfile.sns3Type,
-                      sns3Account: currentUserProfile.sns3Account,
-                      businessName: currentUserProfile.businessName,
-                      industry: currentUserProfile.industry,
-                      businessDescription: currentUserProfile.business,
-                      country: currentUserProfile.country,
-                      region: currentUserProfile.region,
-                      city: currentUserProfile.city,
-                      skills: currentUserProfile.skills,
-                      interests: currentUserProfile.interests,
-                      message: currentUserProfile.message,
-                      mission: currentUserProfile.mission,
-                      profileImage: null,
-                      profileImagePreview: currentUserProfile.profileImage || null
-                    });
-                  }}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors flex items-center gap-2"
-                >
-                  <Edit2 size={18} />
-                  編集する
-                </button>
-              ) : (
-                <div className="flex gap-2">
+        <div className="p-6 lg:p-8">
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-gray-100">
+                <h2 className="text-lg font-bold text-gray-900">My Profile</h2>
+                {!isEditMode ? (
                   <button
                     onClick={() => {
-                      setIsEditMode(false);
-                      // Reset form data to current profile is handled by button click logic above mostly
-                    }}
-                    className="bg-gray-400 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-500 transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCurrentUserProfile({
-                        ...currentUserProfile,
-                        name: formData.name,
-                        email: formData.email,
-                        phone: formData.phone,
-                        chatworkId: formData.chatworkId,
-                        sns1Type: formData.sns1Type,
-                        sns1Account: formData.sns1Account,
-                        sns2Type: formData.sns2Type,
-                        sns2Account: formData.sns2Account,
-                        sns3Type: formData.sns3Type,
-                        sns3Account: formData.sns3Account,
-                        businessName: formData.businessName,
-                        industry: formData.industry,
-                        business: formData.businessDescription,
-                        country: formData.country,
-                        region: formData.region,
-                        city: formData.city,
-                        location: `${formData.region}・${formData.city}`,
-                        skills: formData.skills,
-                        interests: formData.interests,
-                        message: formData.message,
-                        mission: formData.mission,
-                        profileImage: formData.profileImagePreview || currentUserProfile.profileImage
+                      setIsEditMode(true);
+                      setFormData({
+                        ...formData,
+                        name: currentUserProfile.name,
+                        email: currentUserProfile.email,
+                        phone: currentUserProfile.phone,
+                        chatworkId: currentUserProfile.chatworkId,
+                        sns1Type: currentUserProfile.sns1Type,
+                        sns1Account: currentUserProfile.sns1Account,
+                        sns2Type: currentUserProfile.sns2Type,
+                        sns2Account: currentUserProfile.sns2Account,
+                        sns3Type: currentUserProfile.sns3Type,
+                        sns3Account: currentUserProfile.sns3Account,
+                        businessName: currentUserProfile.businessName,
+                        industry: currentUserProfile.industry,
+                        businessDescription: currentUserProfile.business,
+                        country: currentUserProfile.country,
+                        region: currentUserProfile.region,
+                        city: currentUserProfile.city,
+                        skills: currentUserProfile.skills,
+                        interests: currentUserProfile.interests,
+                        message: currentUserProfile.message,
+                        mission: currentUserProfile.mission,
+                        profileImage: null,
+                        profileImagePreview: currentUserProfile.profileImage || null
                       });
-                      setIsEditMode(false);
                     }}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                    className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5 transition-colors"
                   >
-                    <Save size={18} />
-                    保存する
+                    <Edit2 size={14} />
+                    Edit
                   </button>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-8 text-center">
-                <div className="relative inline-block">
-                  <div className="w-32 h-32 mx-auto rounded-full overflow-hidden bg-white border-4 border-white shadow-lg">
-                    {formData.profileImagePreview || currentUserProfile?.profileImage ? (
-                      <img 
-                        src={formData.profileImagePreview || currentUserProfile.profileImage || undefined} 
-                        alt={currentUserProfile?.name} 
-                        className="w-full h-full object-cover" 
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-7xl">👤</div>
-                    )}
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setIsEditMode(false)}
+                      className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentUserProfile({
+                          ...currentUserProfile,
+                          name: formData.name,
+                          email: formData.email,
+                          phone: formData.phone,
+                          chatworkId: formData.chatworkId,
+                          sns1Type: formData.sns1Type,
+                          sns1Account: formData.sns1Account,
+                          sns2Type: formData.sns2Type,
+                          sns2Account: formData.sns2Account,
+                          sns3Type: formData.sns3Type,
+                          sns3Account: formData.sns3Account,
+                          businessName: formData.businessName,
+                          industry: formData.industry,
+                          business: formData.businessDescription,
+                          country: formData.country,
+                          region: formData.region,
+                          city: formData.city,
+                          location: `${formData.region}・${formData.city}`,
+                          skills: formData.skills,
+                          interests: formData.interests,
+                          message: formData.message,
+                          mission: formData.mission,
+                          profileImage: formData.profileImagePreview || currentUserProfile.profileImage
+                        });
+                        setIsEditMode(false);
+                      }}
+                      className="text-sm bg-slate-800 text-white px-3 py-1.5 rounded-md hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <Save size={14} />
+                      Save
+                    </button>
                   </div>
-                  {isEditMode && (
-                    <label className="absolute bottom-0 right-0 bg-purple-600 text-white rounded-full p-2 cursor-pointer hover:bg-purple-700 transition-colors">
-                      <Plus size={20} />
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-                <h2 className="text-3xl font-bold mt-4">
-                  {isEditMode ? formData.name : currentUserProfile?.name}
-                </h2>
-                <p className="text-sm opacity-90">登録日: {currentUserProfile?.registeredAt}</p>
+                )}
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="px-6 pb-8 space-y-6">
                 {currentUserProfile ? (
                   <>
-                    <div>
-                      <h3 className="text-xl font-bold mb-4 text-blue-600 flex items-center">
-                        <User className="mr-2" size={24} />
-                        基本情報
-                      </h3>
+                    {/* Avatar & Name */}
+                    <div className="text-center pt-6">
+                      <div className="relative inline-block">
+                        <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                          {formData.profileImagePreview || currentUserProfile?.profileImage ? (
+                            <img
+                              src={formData.profileImagePreview || currentUserProfile.profileImage || undefined}
+                              alt={currentUserProfile?.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={36} /></div>
+                          )}
+                        </div>
+                        {isEditMode && (
+                          <label className="absolute bottom-0 right-0 bg-slate-800 text-white rounded-full p-1.5 cursor-pointer hover:bg-slate-700 transition-colors">
+                            <Plus size={14} />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
                       {isEditMode ? (
-                        <div className="space-y-3 ml-8">
-                          <div>
-                            <label className="block text-sm font-semibold mb-1">名前</label>
-                            <input 
-                              type="text"
-                              name="name"
-                              value={formData.name}
-                              onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
-                            />
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          className="mt-3 text-center text-lg font-semibold border border-gray-300 rounded-md px-3 py-1.5 w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      ) : (
+                        <h3 className="mt-3 text-lg font-semibold text-gray-900">{currentUserProfile.name}</h3>
+                      )}
+                      {currentUserProfile.businessName && (
+                        <p className="text-sm text-gray-500 mt-0.5">{currentUserProfile.businessName}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">Registered: {currentUserProfile.registeredAt}</p>
+                    </div>
+
+                    {/* Mission */}
+                    {(isEditMode || currentUserProfile.mission) && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">MISSION</p>
+                        {isEditMode ? (
+                          <textarea
+                            name="mission"
+                            value={formData.mission}
+                            onChange={handleInputChange}
+                            className="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 h-20"
+                            placeholder="価値観やミッションを入力..."
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 leading-relaxed">{currentUserProfile.mission}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Contact */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">CONTACT</p>
+                      {isEditMode ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Email</label>
+                              <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Phone</label>
+                              <input
+                                type="tel"
+                                name="phone"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold mb-1">メールアドレス</label>
-                            <input 
-                              type="email"
-                              name="email"
-                              value={formData.email}
-                              onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold mb-1">電話番号</label>
-                            <input 
-                              type="tel"
-                              name="phone"
-                              value={formData.phone}
-                              onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold mb-1">Chatwork ID</label>
-                            <input 
+                            <label className="block text-xs text-gray-500 mb-1">Chatwork ID</label>
+                            <input
                               type="text"
                               name="chatworkId"
                               value={formData.chatworkId}
                               onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold mb-1">価値観・ミッション</label>
-                            <textarea 
-                              name="mission"
-                              value={formData.mission}
-                              onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg h-24"
-                              placeholder="価値観やミッションを入力..."
+                              className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-2 text-sm ml-8">
-                          <p><strong>メール:</strong> {currentUserProfile.email}</p>
-                          <p><strong>電話:</strong> {currentUserProfile.phone}</p>
-                          <p><strong>Chatwork ID:</strong> {currentUserProfile.chatworkId || '未設定'}</p>
-                          {currentUserProfile.mission && (
-                            <div className="mt-3 pt-3 border-t">
-                              <p className="font-semibold mb-1">価値観・ミッション:</p>
-                              <p className="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-500">{currentUserProfile.mission}</p>
-                            </div>
-                          )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-8 text-sm">
+                          <div>
+                            <span className="text-gray-400">Email</span>
+                            <p className="text-gray-800">{currentUserProfile.email}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Phone</span>
+                            <p className="text-gray-800">{currentUserProfile.phone || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Chatwork ID</span>
+                            <p className="text-gray-800">{currentUserProfile.chatworkId || '-'}</p>
+                          </div>
                         </div>
                       )}
                     </div>
 
+                    {/* SNS */}
                     <div>
-                      <h3 className="text-xl font-bold mb-4 text-green-600 flex items-center">
-                        <MessageCircle className="mr-2" size={24} />
-                        SNSアカウント
-                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">SNS</p>
                       {isEditMode ? (
-                        <div className="space-y-3 ml-8">
+                        <div className="space-y-2">
                           {[1, 2, 3].map(num => (
                             <div key={num} className="grid grid-cols-3 gap-2">
                               <select
                                 name={`sns${num}Type`}
                                 value={formData[`sns${num}Type`]}
                                 onChange={handleInputChange}
-                                className="p-2 border-2 border-gray-300 rounded-lg"
+                                className="p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               >
                                 <option value="">SNS選択</option>
                                 <option value="𝕏 (Twitter)">𝕏 (Twitter)</option>
@@ -1739,12 +1776,12 @@ const BusinessMatchingApp: React.FC = () => {
                                 <option value="Note">Note</option>
                                 <option value="その他">その他</option>
                               </select>
-                              <input 
+                              <input
                                 type="text"
                                 name={`sns${num}Account`}
                                 value={formData[`sns${num}Account`]}
                                 onChange={handleInputChange}
-                                className="col-span-2 p-2 border-2 border-gray-300 rounded-lg"
+                                className="col-span-2 p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 placeholder="アカウント名またはURL"
                                 disabled={!formData[`sns${num}Type`]}
                               />
@@ -1752,135 +1789,158 @@ const BusinessMatchingApp: React.FC = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className="space-y-2 text-sm ml-8">
+                        <div className="space-y-1 text-sm">
                           {currentUserProfile.sns1Type && (
-                            <p><strong>{currentUserProfile.sns1Type}:</strong> {currentUserProfile.sns1Account}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 w-28">{currentUserProfile.sns1Type}</span>
+                              <span className="text-gray-800">{currentUserProfile.sns1Account}</span>
+                            </div>
                           )}
                           {currentUserProfile.sns2Type && (
-                            <p><strong>{currentUserProfile.sns2Type}:</strong> {currentUserProfile.sns2Account}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 w-28">{currentUserProfile.sns2Type}</span>
+                              <span className="text-gray-800">{currentUserProfile.sns2Account}</span>
+                            </div>
                           )}
                           {currentUserProfile.sns3Type && (
-                            <p><strong>{currentUserProfile.sns3Type}:</strong> {currentUserProfile.sns3Account}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 w-28">{currentUserProfile.sns3Type}</span>
+                              <span className="text-gray-800">{currentUserProfile.sns3Account}</span>
+                            </div>
                           )}
                           {!currentUserProfile.sns1Type && !currentUserProfile.sns2Type && !currentUserProfile.sns3Type && (
-                            <p className="text-gray-500">未設定</p>
+                            <p className="text-gray-400">-</p>
                           )}
                         </div>
                       )}
                     </div>
 
+                    {/* Business */}
                     <div>
-                      <h3 className="text-xl font-bold mb-4 text-purple-600 flex items-center">
-                        <Briefcase className="mr-2" size={24} />
-                        ビジネス情報
-                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">BUSINESS</p>
                       {isEditMode ? (
-                        <div className="space-y-3 ml-8">
-                          <div>
-                            <label className="block text-sm font-semibold mb-1">ビジネス名</label>
-                            <input 
-                              type="text"
-                              name="businessName"
-                              value={formData.businessName}
-                              onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
-                            />
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Business Name</label>
+                              <input
+                                type="text"
+                                name="businessName"
+                                value={formData.businessName}
+                                onChange={handleInputChange}
+                                className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Industry</label>
+                              <select
+                                name="industry"
+                                value={formData.industry}
+                                onChange={handleInputChange}
+                                className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              >
+                                <option value="">選択してください</option>
+                                <option value="it">IT・テクノロジー</option>
+                                <option value="manufacturing">製造業</option>
+                                <option value="retail">小売・EC</option>
+                                <option value="food">飲食業</option>
+                                <option value="consulting">コンサルティング</option>
+                                <option value="other">その他</option>
+                              </select>
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold mb-1">業種</label>
-                            <select 
-                              name="industry"
-                              value={formData.industry}
-                              onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
-                            >
-                              <option value="">選択してください</option>
-                              <option value="it">IT・テクノロジー</option>
-                              <option value="manufacturing">製造業</option>
-                              <option value="retail">小売・EC</option>
-                              <option value="food">飲食業</option>
-                              <option value="consulting">コンサルティング</option>
-                              <option value="other">その他</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold mb-1">ビジネス内容</label>
-                            <textarea 
+                            <label className="block text-xs text-gray-500 mb-1">Description</label>
+                            <textarea
                               name="businessDescription"
                               value={formData.businessDescription}
                               onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg h-20"
+                              className="w-full p-2.5 border border-gray-300 rounded-md text-sm h-20 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-2 text-sm ml-8">
-                          <p><strong>ビジネス名:</strong> {currentUserProfile.businessName}</p>
-                          <p><strong>業種:</strong> {currentUserProfile.industry}</p>
-                          <p><strong>内容:</strong> {currentUserProfile.business}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-8 text-sm">
+                          <div>
+                            <span className="text-gray-400">Business Name</span>
+                            <p className="text-gray-800">{currentUserProfile.businessName || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Industry</span>
+                            <p className="text-gray-800">{currentUserProfile.industry || '-'}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <span className="text-gray-400">Description</span>
+                            <p className="text-gray-800">{currentUserProfile.business || '-'}</p>
+                          </div>
                         </div>
                       )}
                     </div>
 
+                    {/* Location */}
                     <div>
-                      <h3 className="text-xl font-bold mb-4 text-orange-600 flex items-center">
-                        <MapPin className="mr-2" size={24} />
-                        所在地
-                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">LOCATION</p>
                       {isEditMode ? (
-                        <div className="grid grid-cols-3 gap-3 ml-8">
+                        <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <label className="block text-sm font-semibold mb-1">国</label>
-                            <input 
+                            <label className="block text-xs text-gray-500 mb-1">Country</label>
+                            <input
                               type="text"
                               name="country"
                               value={formData.country}
                               onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
+                              className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold mb-1">都道府県</label>
-                            <input 
+                            <label className="block text-xs text-gray-500 mb-1">Region</label>
+                            <input
                               type="text"
                               name="region"
                               value={formData.region}
                               onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
+                              className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold mb-1">市区町村</label>
-                            <input 
+                            <label className="block text-xs text-gray-500 mb-1">City</label>
+                            <input
                               type="text"
                               name="city"
                               value={formData.city}
                               onChange={handleInputChange}
-                              className="w-full p-2 border-2 border-gray-300 rounded-lg"
+                              className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-2 text-sm ml-8">
-                          <p><strong>国:</strong> {currentUserProfile.country}</p>
-                          <p><strong>都道府県:</strong> {currentUserProfile.region}</p>
-                          <p><strong>市区町村:</strong> {currentUserProfile.city}</p>
+                        <div className="grid grid-cols-3 gap-x-8 text-sm">
+                          <div>
+                            <span className="text-gray-400">Country</span>
+                            <p className="text-gray-800">{currentUserProfile.country || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Region</span>
+                            <p className="text-gray-800">{currentUserProfile.region || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">City</span>
+                            <p className="text-gray-800">{currentUserProfile.city || '-'}</p>
+                          </div>
                         </div>
                       )}
                     </div>
 
+                    {/* Skills */}
                     <div>
-                      <h3 className="text-xl font-bold mb-4 text-indigo-600 flex items-center">
-                        <TrendingUp className="mr-2" size={24} />
-                        提供できる価値
-                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">SKILLS & EXPERTISE</p>
                       {isEditMode ? (
-                        <div className="ml-8">
-                          <div className="flex gap-2 mb-2">
-                            <input 
+                        <div>
+                          <div className="flex gap-2 mb-3">
+                            <input
                               type="text"
                               id="skill-input"
-                              className="flex-1 p-2 border-2 border-gray-300 rounded-lg"
+                              className="flex-1 p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               placeholder="スキルを追加"
                               onKeyPress={(e) => {
                                 if (e.key === 'Enter') {
@@ -1889,7 +1949,7 @@ const BusinessMatchingApp: React.FC = () => {
                                 }
                               }}
                             />
-                            <button 
+                            <button
                               onClick={() => {
                                 const input = document.getElementById('skill-input') as HTMLInputElement;
                                 if (input && input.value.trim()) {
@@ -1897,49 +1957,47 @@ const BusinessMatchingApp: React.FC = () => {
                                   input.value = '';
                                 }
                               }}
-                              className="bg-purple-600 text-white px-3 rounded-lg hover:bg-purple-700"
+                              className="bg-slate-800 text-white px-3 rounded-md hover:bg-slate-700 transition-colors"
                             >
-                              <Plus size={20} />
+                              <Plus size={16} />
                             </button>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {formData.skills.map((skill, idx) => (
-                              <span key={idx} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                              <span key={idx} className="border border-gray-300 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-1.5">
                                 {skill}
-                                <button onClick={() => removeSkill(skill)}>
-                                  <X size={14} />
+                                <button onClick={() => removeSkill(skill)} className="text-gray-400 hover:text-gray-600">
+                                  <X size={12} />
                                 </button>
                               </span>
                             ))}
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-wrap gap-2 ml-8">
+                        <div className="flex flex-wrap gap-2">
                           {currentUserProfile.skills && currentUserProfile.skills.length > 0 ? (
                             currentUserProfile.skills.map((skill, idx) => (
-                              <span key={idx} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm">
+                              <span key={idx} className="border border-gray-300 text-gray-700 px-3 py-1 rounded-full text-sm">
                                 {skill}
                               </span>
                             ))
                           ) : (
-                            <span className="text-gray-500 text-sm">未設定</span>
+                            <span className="text-gray-400 text-sm">-</span>
                           )}
                         </div>
                       )}
                     </div>
 
+                    {/* Interests */}
                     <div>
-                      <h3 className="text-xl font-bold mb-4 text-pink-600 flex items-center">
-                        <Heart className="mr-2" size={24} />
-                        興味・関心
-                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">INTERESTS</p>
                       {isEditMode ? (
-                        <div className="ml-8">
-                          <div className="flex gap-2 mb-2">
-                            <input 
+                        <div>
+                          <div className="flex gap-2 mb-3">
+                            <input
                               type="text"
                               id="interest-input"
-                              className="flex-1 p-2 border-2 border-gray-300 rounded-lg"
+                              className="flex-1 p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               placeholder="興味を追加"
                               onKeyPress={(e) => {
                                 if (e.key === 'Enter') {
@@ -1948,7 +2006,7 @@ const BusinessMatchingApp: React.FC = () => {
                                 }
                               }}
                             />
-                            <button 
+                            <button
                               onClick={() => {
                                 const input = document.getElementById('interest-input') as HTMLInputElement;
                                 if (input && input.value.trim()) {
@@ -1956,61 +2014,57 @@ const BusinessMatchingApp: React.FC = () => {
                                   input.value = '';
                                 }
                               }}
-                              className="bg-purple-600 text-white px-3 rounded-lg hover:bg-purple-700"
+                              className="bg-slate-800 text-white px-3 rounded-md hover:bg-slate-700 transition-colors"
                             >
-                              <Plus size={20} />
+                              <Plus size={16} />
                             </button>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {formData.interests.map((interest, idx) => (
-                              <span key={idx} className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                              <span key={idx} className="border border-gray-300 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-1.5">
                                 {interest}
-                                <button onClick={() => removeInterest(interest)}>
-                                  <X size={14} />
+                                <button onClick={() => removeInterest(interest)} className="text-gray-400 hover:text-gray-600">
+                                  <X size={12} />
                                 </button>
                               </span>
                             ))}
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-wrap gap-2 ml-8">
+                        <div className="flex flex-wrap gap-2">
                           {currentUserProfile.interests && currentUserProfile.interests.length > 0 ? (
                             currentUserProfile.interests.map((interest, idx) => (
-                              <span key={idx} className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm">
+                              <span key={idx} className="border border-gray-300 text-gray-700 px-3 py-1 rounded-full text-sm">
                                 {interest}
                               </span>
                             ))
                           ) : (
-                            <span className="text-gray-500 text-sm">未設定</span>
+                            <span className="text-gray-400 text-sm">-</span>
                           )}
                         </div>
                       )}
                     </div>
 
+                    {/* Message */}
                     <div>
-                      <h3 className="text-xl font-bold mb-4 text-cyan-600 flex items-center">
-                        <MessageCircle className="mr-2" size={24} />
-                        メンバーへのメッセージ
-                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">MESSAGE</p>
                       {isEditMode ? (
-                        <div className="ml-8">
-                          <textarea 
-                            name="message"
-                            value={formData.message}
-                            onChange={handleInputChange}
-                            className="w-full p-3 border-2 border-gray-300 rounded-lg h-32"
-                            placeholder="メンバーへのメッセージを入力..."
-                          />
-                        </div>
+                        <textarea
+                          name="message"
+                          value={formData.message}
+                          onChange={handleInputChange}
+                          className="w-full p-3 border border-gray-300 rounded-md text-sm h-28 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="メンバーへのメッセージを入力..."
+                        />
                       ) : (
-                        <p className="text-sm bg-cyan-50 p-4 rounded-lg italic ml-8">
-                          {currentUserProfile.message || 'メッセージ未設定'}
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          {currentUserProfile.message || '-'}
                         </p>
                       )}
                     </div>
                   </>
                 ) : (
-                  <p className="text-red-600">プロフィール情報が読み込まれていません</p>
+                  <p className="text-gray-500 text-sm">プロフィール情報が読み込まれていません</p>
                 )}
               </div>
             </div>
@@ -2019,179 +2073,156 @@ const BusinessMatchingApp: React.FC = () => {
       )}
 
       {currentView === 'profile' && selectedUser && (
-        <div className="p-4 max-w-2xl mx-auto">
-          <div className="space-y-6">
-            <button 
-              onClick={() => setCurrentView('home')}
-              className="text-blue-600 hover:text-blue-800 font-semibold mb-4"
-            >
-              ← ホームに戻る
-            </button>
+        <div className="p-6 lg:p-8">
+          <div className="max-w-lg mx-auto">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-5 pb-3">
+                <h2 className="text-lg font-bold text-gray-900">Profile Details</h2>
+                <button onClick={() => setCurrentView('home')} className="text-gray-400 hover:text-gray-600">
+                  <X size={20} />
+                </button>
+              </div>
 
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-8 text-center">
-                <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden bg-white border-4 border-white shadow-lg">
-                  {selectedUser.profileImage ? (
-                    <img src={selectedUser.profileImage} alt={selectedUser.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-7xl">{selectedUser.image}</div>
+              <div className="px-6 pb-8 space-y-6">
+                {/* Avatar & Name */}
+                <div className="text-center pt-2">
+                  <div className="w-24 h-24 mx-auto mb-3 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                    {selectedUser.profileImage ? (
+                      <img src={selectedUser.profileImage} alt={selectedUser.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400"><User size={40} /></div>
+                    )}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">{selectedUser.name}</h3>
+                  <p className="text-sm text-gray-500">{selectedUser.businessName}</p>
+                  {selectedUser.chatworkId && (
+                    <a
+                      href={`https://www.chatwork.com/#!rid${selectedUser.chatworkId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-3 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-500 transition-colors"
+                    >
+                      <MessageCircle size={16} />
+                      Message
+                    </a>
                   )}
                 </div>
-                <h2 className="text-3xl font-bold mb-2">{selectedUser.name}</h2>
-                <div className="bg-white bg-opacity-20 rounded-full px-4 py-2 inline-block">
-                  <span className="text-2xl font-bold">マッチ度: {selectedUser.matchScore}%</span>
-                </div>
-              </div>
 
-              <div className="p-6 space-y-6">
-                <div>
-                  <div className="flex items-center mb-3">
-                    <Briefcase className="mr-2 text-blue-600" size={24} />
-                    <h3 className="text-lg font-bold">ビジネス情報</h3>
-                  </div>
-                  <p className="text-gray-700 ml-8">{selectedUser.business}</p>
-                </div>
-
-                <div>
-                  <div className="flex items-center mb-3">
-                    <MapPin className="mr-2 text-green-600" size={24} />
-                    <h3 className="text-lg font-bold">居住地</h3>
-                  </div>
-                  <p className="text-gray-700 ml-8">{selectedUser.location}（あなたから{selectedUser.distance}）</p>
-                </div>
-
-                <div>
-                  <div className="flex items-center mb-3">
-                    <MessageCircle className="mr-2 text-blue-600" size={24} />
-                    <h3 className="text-lg font-bold">連絡先情報</h3>
-                  </div>
-                  <div className="ml-8 space-y-3">
-                    {selectedUser.chatworkId && (
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-sm font-semibold text-blue-800 mb-1">Chatwork ID</p>
-                        <p className="text-blue-600 font-mono">{selectedUser.chatworkId}</p>
-                      </div>
-                    )}
-                    {selectedUser.sns1Type && (
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-sm font-semibold text-purple-800 mb-1">{selectedUser.sns1Type}</p>
-                        <p className="text-purple-600">{selectedUser.sns1Account}</p>
-                      </div>
-                    )}
-                    {selectedUser.sns2Type && (
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-sm font-semibold text-purple-800 mb-1">{selectedUser.sns2Type}</p>
-                        <p className="text-purple-600">{selectedUser.sns2Account}</p>
-                      </div>
-                    )}
-                    {selectedUser.sns3Type && (
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-sm font-semibold text-purple-800 mb-1">{selectedUser.sns3Type}</p>
-                        <p className="text-purple-600">{selectedUser.sns3Account}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
+                {/* About */}
                 {selectedUser.message && (
                   <div>
-                    <div className="flex items-center mb-3">
-                      <MessageCircle className="mr-2 text-cyan-600" size={24} />
-                      <h3 className="text-lg font-bold">メッセージ</h3>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">About</p>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-700 leading-relaxed">{selectedUser.message}</p>
                     </div>
-                    <p className="text-gray-700 ml-8 italic bg-cyan-50 p-4 rounded-lg">
-                      "{selectedUser.message}"
-                    </p>
                   </div>
                 )}
 
+                {/* Mission */}
                 {selectedUser.mission && (
                   <div>
-                    <div className="flex items-center mb-3">
-                      <TrendingUp className="mr-2 text-yellow-600" size={24} />
-                      <h3 className="text-lg font-bold">価値観・ミッション</h3>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Mission</p>
+                    <div className="border-l-3 border-indigo-400 pl-4">
+                      <p className="text-sm text-gray-700 italic leading-relaxed">"{selectedUser.mission}"</p>
                     </div>
-                    <p className="text-gray-700 ml-8 bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
-                      {selectedUser.mission}
-                    </p>
                   </div>
                 )}
 
-                <div>
-                  <div className="flex items-center mb-3">
-                    <TrendingUp className="mr-2 text-purple-600" size={24} />
-                    <h3 className="text-lg font-bold">提供できる価値</h3>
+                {/* Industry & Location */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Industry</p>
+                    <p className="text-sm text-gray-900">{selectedUser.industry}</p>
                   </div>
-                  <ul className="ml-8 space-y-1">
-                    {selectedUser.skills.map((skill, idx) => (
-                      <li key={idx} className="text-gray-700">・{skill}</li>
-                    ))}
-                  </ul>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Location</p>
+                    <p className="text-sm text-gray-900">{selectedUser.region}{selectedUser.city ? `・${selectedUser.city}` : ''}</p>
+                  </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center mb-3">
-                    <Heart className="mr-2 text-red-600" size={24} />
-                    <h3 className="text-lg font-bold">興味・学びたいこと</h3>
+                {/* Skills */}
+                {selectedUser.skills && selectedUser.skills.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Skills & Expertise</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUser.skills.map((skill, idx) => (
+                        <span key={idx} className="border border-gray-300 text-gray-700 px-3 py-1 rounded-full text-sm">{skill}</span>
+                      ))}
+                    </div>
                   </div>
-                  <ul className="ml-8 space-y-1">
-                    {selectedUser.interests.map((interest, idx) => (
-                      <li key={idx} className="text-gray-700">・{interest}</li>
-                    ))}
-                  </ul>
+                )}
+
+                {/* Interests */}
+                {selectedUser.interests && selectedUser.interests.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Interests</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUser.interests.map((interest, idx) => (
+                        <span key={idx} className="border border-indigo-300 text-indigo-700 px-3 py-1 rounded-full text-sm">{interest}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact Info */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Contact</p>
+                  <div className="space-y-2 text-sm">
+                    {selectedUser.chatworkId && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">Chatwork:</span> {selectedUser.chatworkId}</p>
+                    )}
+                    {selectedUser.sns1Type && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">{selectedUser.sns1Type}:</span> {selectedUser.sns1Account}</p>
+                    )}
+                    {selectedUser.sns2Type && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">{selectedUser.sns2Type}:</span> {selectedUser.sns2Account}</p>
+                    )}
+                    {selectedUser.sns3Type && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">{selectedUser.sns3Type}:</span> {selectedUser.sns3Account}</p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-bold mb-3 text-center">マッチ度詳細</h4>
-                  <div className="space-y-2">
+                {/* Match Score */}
+                <div className="border-t pt-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Match Score</p>
+                  <div className="space-y-2 text-sm">
                     <div className="flex justify-between items-center">
-                      <span>ビジネス</span>
-                      <span className="text-lg">{renderStars(selectedUser.businessScore)}</span>
+                      <span className="text-gray-600">Business</span>
+                      <span className="text-gray-500">{renderStars(selectedUser.businessScore)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>近隣性</span>
-                      <span className="text-lg">{renderStars(selectedUser.locationScore)}</span>
+                      <span className="text-gray-600">Location</span>
+                      <span className="text-gray-500">{renderStars(selectedUser.locationScore)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>趣味</span>
-                      <span className="text-lg">{renderStars(selectedUser.interestScore)}</span>
+                      <span className="text-gray-600">Interests</span>
+                      <span className="text-gray-500">{renderStars(selectedUser.interestScore)}</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg text-center">
-              <p className="text-sm mb-2">👆 上記の連絡先情報から直接コンタクトしてください</p>
-              <p className="text-xs opacity-90">Chatwork、SNSなどでつながりましょう！</p>
             </div>
           </div>
         </div>
       )}
 
       {currentView === 'search' && (
-        <div className="p-4 max-w-2xl mx-auto">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold flex items-center">
-                <Search className="mr-2" size={28} />
-                メンバー検索
-              </h2>
-              <button 
-                onClick={() => setCurrentView('home')}
-                className="text-blue-600 hover:text-blue-800 font-semibold"
-              >
-                ← ホームに戻る
-              </button>
+        <div className="p-6 lg:p-8">
+          <div className="max-w-4xl space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Search Members</h1>
+              <p className="text-sm text-gray-500 mt-1">Filter and find the right business partners.</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-bold mb-4">検索条件</h3>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold mb-2 flex items-center">
-                    <Briefcase size={18} className="mr-2 text-blue-600" />
+                    <Briefcase size={18} className="mr-2 text-indigo-600" />
                     ビジネス（業種）
                   </label>
                   <input 
@@ -2199,7 +2230,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="industry"
                     value={searchFilters.industry}
                     onChange={handleSearchFilterChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                     placeholder="例：IT、製造業、飲食業"
                   />
                 </div>
@@ -2214,7 +2245,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="region"
                     value={searchFilters.region}
                     onChange={handleSearchFilterChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-green-500 focus:outline-none"
                     placeholder="例：東京、港区、横浜"
                   />
                 </div>
@@ -2229,7 +2260,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="skill"
                     value={searchFilters.skill}
                     onChange={handleSearchFilterChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                     placeholder="例：マーケティング、資金調達、DX"
                   />
                 </div>
@@ -2244,7 +2275,7 @@ const BusinessMatchingApp: React.FC = () => {
                     name="interest"
                     value={searchFilters.interest}
                     onChange={handleSearchFilterChange}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:outline-none"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-pink-500 focus:outline-none"
                     placeholder="例：ゴルフ、DX推進、SNSマーケティング"
                   />
                 </div>
@@ -2253,7 +2284,7 @@ const BusinessMatchingApp: React.FC = () => {
                   onClick={() => {
                     performSearch();
                   }}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-lg font-bold hover:from-blue-600 hover:to-purple-700 transition-all text-lg flex items-center justify-center gap-2"
+                  className="w-full bg-slate-800 text-white py-3.5 rounded-lg font-semibold hover:bg-slate-700 transition-colors text-lg flex items-center justify-center gap-2"
                 >
                   <Search size={24} />
                   検索する
@@ -2296,13 +2327,13 @@ const BusinessMatchingApp: React.FC = () => {
                           {(user.profileImage ?? (user as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
                             <img src={(user.profileImage ?? (user as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={user.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-4xl">{(user as UserProfile & { image?: string }).image ?? '👤'}</div>
+                            <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={20} /></div>
                           )}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-xl font-bold">{user.name}</h4>
-                            <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">
+                            <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold">
                               {(user as UserProfile & { matchScore?: number }).matchScore ?? 0}%
                             </div>
                           </div>
@@ -2318,7 +2349,7 @@ const BusinessMatchingApp: React.FC = () => {
                             </p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {user.skills.slice(0, 3).map((skill, idx) => (
-                                <span key={idx} className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                                <span key={idx} className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-xs">
                                   {skill}
                                 </span>
                               ))}
@@ -2343,93 +2374,82 @@ const BusinessMatchingApp: React.FC = () => {
       )}
 
       {currentView === 'admin' && (
-        <div className="max-w-6xl mx-auto p-6">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Shield className="text-yellow-600" size={32} />
-                <h2 className="text-3xl font-bold">管理者ダッシュボード</h2>
-              </div>
-              <button 
-                onClick={handleLogout}
-                className="text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                ログアウト
-              </button>
+        <div className="p-6 lg:p-8">
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage users, settings, and platform data.</p>
             </div>
 
             {apiError && (
-              <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
-                <p className="text-sm font-semibold text-red-800 mb-2">API通信エラー</p>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm font-medium text-red-800 mb-1">API Error</p>
                 <pre className="text-sm text-red-700 whitespace-pre-wrap break-all">{apiError}</pre>
-                <button type="button" onClick={() => setApiError('')} className="mt-2 text-sm text-red-600 hover:underline font-semibold">閉じる</button>
+                <button type="button" onClick={() => setApiError('')} className="mt-2 text-sm text-red-600 hover:underline font-medium">Dismiss</button>
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg">
-                <Users size={32} className="mb-2" />
-                <p className="text-sm opacity-90">総登録者数</p>
-                <p className="text-4xl font-bold">{adminUsersList.length}</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-white border border-gray-200 p-5 rounded-lg">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Users</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{adminUsersList.length}</p>
               </div>
-              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-lg">
-                <TrendingUp size={32} className="mb-2" />
-                <p className="text-sm opacity-90">今月の新規登録</p>
-                <p className="text-4xl font-bold">{(() => {
+              <div className="bg-white border border-gray-200 p-5 rounded-lg">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">New This Month</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{(() => {
                   const now = new Date();
                   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                   return adminUsersList.filter((u) => u.registeredAt?.startsWith(ym)).length;
                 })()}</p>
               </div>
-              <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg">
-                <MessageCircle size={32} className="mb-2" />
-                <p className="text-sm opacity-90">総マッチング数</p>
-                <p className="text-4xl font-bold">47</p>
+              <div className="bg-white border border-gray-200 p-5 rounded-lg">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Matches</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">47</p>
               </div>
             </div>
 
-            <div className="mb-6 flex gap-4">
+            <div className="flex gap-3">
               <button
                 onClick={() => setAdminRefreshKey((k) => k + 1)}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors flex items-center gap-2"
               >
-                <RefreshCw size={20} />
-                更新
+                <RefreshCw size={16} />
+                Refresh
               </button>
               <button
                 onClick={downloadCSV}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
               >
-                <Download size={20} />
-                登録者データをCSVでダウンロード
+                <Download size={16} />
+                Export CSV
               </button>
               <button
                 onClick={() => setCurrentView('admin-settings')}
-                className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
               >
-                <Shield size={20} />
-                管理者設定
+                <Shield size={16} />
+                Settings
               </button>
             </div>
 
-            <div className="border-t pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">登録ユーザー一覧</h3>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 className="text-base font-bold text-gray-900">Users</h3>
                 {selectedUserIds.size > 0 && (
                   <button
                     onClick={handleBulkDelete}
                     disabled={bulkDeleting}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Trash2 size={18} />
-                    {bulkDeleting ? '削除中...' : `選択した ${selectedUserIds.size} 件を一括削除`}
+                    <Trash2 size={14} />
+                    {bulkDeleting ? 'Deleting...' : `Delete ${selectedUserIds.size} selected`}
                   </button>
                 )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/50">
                       <th className="px-3 py-3 text-center text-sm font-semibold w-10">
                         <input
                           type="checkbox"
@@ -2444,27 +2464,27 @@ const BusinessMatchingApp: React.FC = () => {
                           }}
                         />
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">名前</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">メール</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">ビジネス名</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">業種</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">地域</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">登録日</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">権限</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">操作</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Business</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Industry</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Region</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Registered</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {adminUsersList.map((user, index) => (
+                    {adminUsersList.map((user) => (
                       <tr
                         key={user.id}
-                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${selectedUserIds.has(user.id) ? 'ring-1 ring-inset ring-blue-300 bg-blue-50' : ''}`}
+                        className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedUserIds.has(user.id) ? 'bg-indigo-50/50' : ''}`}
                       >
                         <td className="px-3 py-3 text-center">
                           <input
                             type="checkbox"
-                            className="w-4 h-4 accent-blue-600 cursor-pointer"
+                            className="w-4 h-4 accent-indigo-600 cursor-pointer rounded"
                             checked={selectedUserIds.has(user.id)}
                             onChange={(e) => {
                               setSelectedUserIds((prev) => {
@@ -2479,69 +2499,71 @@ const BusinessMatchingApp: React.FC = () => {
                             }}
                           />
                         </td>
-                        <td className="px-4 py-3 text-sm">{user.id}</td>
-                        <td className="px-4 py-3 text-sm font-semibold">{user.name}</td>
-                        <td className="px-4 py-3 text-sm">{user.email}</td>
-                        <td className="px-4 py-3 text-sm">{user.businessName}</td>
-                        <td className="px-4 py-3 text-sm">{user.industry}</td>
-                        <td className="px-4 py-3 text-sm">{user.region}</td>
-                        <td className="px-4 py-3 text-sm">{user.registeredAt}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{user.id}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{user.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 hidden lg:table-cell">{user.businessName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 hidden lg:table-cell">{user.industry}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 hidden md:table-cell">{user.region}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{user.registeredAt}</td>
                         <td className="px-4 py-3 text-sm">
                           {user.role === 'admin' ? (
-                            <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-bold">
-                              <Shield size={12} /> Admin
+                            <span className="inline-flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded text-xs font-medium">
+                              Admin
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">
                               User
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setCurrentView('admin-detail');
-                            }}
-                            className="text-blue-600 hover:text-blue-800 font-semibold mr-2"
-                          >
-                            詳細
-                          </button>
-                          <button
-                            onClick={() => {
-                              const newRole = user.role === 'admin' ? 'user' : 'admin';
-                              const action = newRole === 'admin' ? '管理者に昇格' : '一般ユーザーに降格';
-                              if (!confirm(`${user.name}（${user.email}）を${action}しますか？`)) return;
-                              apiUpdateRole(user.id, newRole).then((res) => {
-                                if (res.ok && res.success) {
-                                  setAdminUsersList((prev) => prev.map((u) => u.id === user.id ? { ...u, role: newRole } : u));
-                                } else {
-                                  alert(res.error || '権限変更に失敗しました');
-                                }
-                              });
-                            }}
-                            disabled={currentUserProfile?.id === user.id}
-                            className={`${user.role === 'admin' ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} font-semibold mr-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            {user.role === 'admin' ? '降格' : '昇格'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (!confirm(`${user.name}（${user.email}）を退会者として削除しますか？\nこの操作は取り消せません。`)) return;
-                              apiDeleteUser(user.id).then((res) => {
-                                if (res.ok && res.success) {
-                                  setAdminUsersList((prev) => prev.filter((u) => u.id !== user.id));
-                                  setSelectedUserIds((prev) => { const next = new Set(prev); next.delete(user.id); return next; });
-                                } else {
-                                  alert(res.error || '削除に失敗しました');
-                                }
-                              });
-                            }}
-                            disabled={currentUserProfile?.id === user.id}
-                            className="text-red-600 hover:text-red-800 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            削除
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setCurrentView('admin-detail');
+                              }}
+                              className="text-indigo-600 hover:text-indigo-500 text-xs font-medium"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => {
+                                const newRole = user.role === 'admin' ? 'user' : 'admin';
+                                const action = newRole === 'admin' ? '管理者に昇格' : '一般ユーザーに降格';
+                                if (!confirm(`${user.name}（${user.email}）を${action}しますか？`)) return;
+                                apiUpdateRole(user.id, newRole).then((res) => {
+                                  if (res.ok && res.success) {
+                                    setAdminUsersList((prev) => prev.map((u) => u.id === user.id ? { ...u, role: newRole } : u));
+                                  } else {
+                                    alert(res.error || '権限変更に失敗しました');
+                                  }
+                                });
+                              }}
+                              disabled={currentUserProfile?.id === user.id}
+                              className="text-gray-500 hover:text-gray-700 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {user.role === 'admin' ? 'Demote' : 'Promote'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!confirm(`${user.name}（${user.email}）を退会者として削除しますか？\nこの操作は取り消せません。`)) return;
+                                apiDeleteUser(user.id).then((res) => {
+                                  if (res.ok && res.success) {
+                                    setAdminUsersList((prev) => prev.filter((u) => u.id !== user.id));
+                                    setSelectedUserIds((prev) => { const next = new Set(prev); next.delete(user.id); return next; });
+                                  } else {
+                                    alert(res.error || '削除に失敗しました');
+                                  }
+                                });
+                              }}
+                              disabled={currentUserProfile?.id === user.id}
+                              className="text-red-500 hover:text-red-700 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2554,25 +2576,25 @@ const BusinessMatchingApp: React.FC = () => {
       )}
 
       {currentView === 'admin-settings' && (
-        <div className="max-w-2xl mx-auto p-6">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Shield className="text-yellow-600" size={32} />
-                <h2 className="text-2xl font-bold">管理者設定</h2>
+        <div className="p-6 lg:p-8">
+          <div className="max-w-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                <p className="text-sm text-gray-500 mt-1">Admin configuration and platform settings.</p>
               </div>
-              <button 
+              <button
                 onClick={() => setCurrentView('admin')}
-                className="text-blue-600 hover:text-blue-800 font-semibold"
+                className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
               >
-                ← ダッシュボードに戻る
+                Back to Dashboard
               </button>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
-                <p className="text-sm text-blue-800 font-semibold mb-1">管理者ログインについて</p>
-                <p className="text-xs text-blue-700">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700 font-medium mb-1">Admin Login</p>
+                <p className="text-xs text-gray-500">
                   管理者はトップの「ログイン」から、role=admin のアカウントでメール・パスワードを入力してログインします。
                 </p>
               </div>
@@ -2582,100 +2604,103 @@ const BusinessMatchingApp: React.FC = () => {
       )}
 
       {currentView === 'admin-detail' && selectedUser && (
-        <div className="max-w-4xl mx-auto p-6">
-          <button 
-            onClick={() => setCurrentView('admin')}
-            className="text-blue-600 hover:text-blue-800 font-semibold mb-4"
-          >
-            ← 管理画面に戻る
-          </button>
+        <div className="p-6 lg:p-8">
+          <div className="max-w-4xl space-y-6">
+            <button
+              onClick={() => setCurrentView('admin')}
+              className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              Back to Users
+            </button>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                {(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
-                  <img src={(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={selectedUser.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-5xl">{(selectedUser as UserProfile & { image?: string }).image ?? '👤'}</div>
-                )}
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold">{selectedUser.name}</h2>
-                <p className="text-gray-600">ID: {selectedUser.id} | 登録日: {selectedUser.registeredAt}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-blue-600">基本情報</h3>
-                <div className="space-y-2 text-sm">
-                  <p><strong>メール:</strong> {selectedUser.email}</p>
-                  <p><strong>電話:</strong> {selectedUser.phone}</p>
-                  <p><strong>Chatwork ID:</strong> {selectedUser.chatworkId || '未設定'}</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-green-600">SNSアカウント</h3>
-                <div className="space-y-2 text-sm">
-                  {selectedUser.sns1Type && (
-                    <p><strong>{selectedUser.sns1Type}:</strong> {selectedUser.sns1Account}</p>
-                  )}
-                  {selectedUser.sns2Type && (
-                    <p><strong>{selectedUser.sns2Type}:</strong> {selectedUser.sns2Account}</p>
-                  )}
-                  {selectedUser.sns3Type && (
-                    <p><strong>{selectedUser.sns3Type}:</strong> {selectedUser.sns3Account}</p>
-                  )}
-                  {!selectedUser.sns1Type && !selectedUser.sns2Type && !selectedUser.sns3Type && (
-                    <p className="text-gray-500">未設定</p>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                  {(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) ? (
+                    <img src={(selectedUser.profileImage ?? (selectedUser as UserProfile & { profileImageUrl?: string }).profileImageUrl) as string} alt={selectedUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400"><User size={28} /></div>
                   )}
                 </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-purple-600">ビジネス情報</h3>
-                <div className="space-y-2 text-sm">
-                  <p><strong>ビジネス名:</strong> {selectedUser.businessName}</p>
-                  <p><strong>業種:</strong> {selectedUser.industry}</p>
-                  <p><strong>内容:</strong> {(selectedUser as UserProfile & { business?: string }).business ?? selectedUser.businessName ?? ''}</p>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedUser.name}</h2>
+                  <p className="text-sm text-gray-500">ID: {selectedUser.id} / Registered: {selectedUser.registeredAt}</p>
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-orange-600">所在地</h3>
-                <div className="space-y-2 text-sm">
-                  <p><strong>国:</strong> {selectedUser.country}</p>
-                  <p><strong>都道府県:</strong> {selectedUser.region}</p>
-                  <p><strong>市区町村:</strong> {selectedUser.city}</p>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contact</p>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Email:</span> {selectedUser.email}</p>
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Phone:</span> {selectedUser.phone}</p>
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Chatwork:</span> {selectedUser.chatworkId || '-'}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="col-span-2">
-                <h3 className="text-lg font-bold mb-3 text-cyan-600">メンバーへのメッセージ</h3>
-                <p className="text-sm bg-cyan-50 p-4 rounded-lg italic">
-                  {selectedUser.message || 'メッセージ未設定'}
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-indigo-600">提供できる価値</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedUser.skills.map((skill, idx) => (
-                    <span key={idx} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm">
-                      {skill}
-                    </span>
-                  ))}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">SNS</p>
+                  <div className="space-y-2 text-sm">
+                    {selectedUser.sns1Type && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">{selectedUser.sns1Type}:</span> {selectedUser.sns1Account}</p>
+                    )}
+                    {selectedUser.sns2Type && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">{selectedUser.sns2Type}:</span> {selectedUser.sns2Account}</p>
+                    )}
+                    {selectedUser.sns3Type && (
+                      <p className="text-gray-700"><span className="font-medium text-gray-500">{selectedUser.sns3Type}:</span> {selectedUser.sns3Account}</p>
+                    )}
+                    {!selectedUser.sns1Type && !selectedUser.sns2Type && !selectedUser.sns3Type && (
+                      <p className="text-gray-400 text-sm">-</p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-pink-600">興味・関心</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedUser.interests.map((interest, idx) => (
-                    <span key={idx} className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm">
-                      {interest}
-                    </span>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Business</p>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Name:</span> {selectedUser.businessName}</p>
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Industry:</span> {selectedUser.industry}</p>
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Description:</span> {(selectedUser as UserProfile & { business?: string }).business ?? selectedUser.businessName ?? ''}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Location</p>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Country:</span> {selectedUser.country}</p>
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">Region:</span> {selectedUser.region}</p>
+                    <p className="text-gray-700"><span className="font-medium text-gray-500">City:</span> {selectedUser.city}</p>
+                  </div>
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Message</p>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-700">
+                      {selectedUser.message || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Skills</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUser.skills.map((skill, idx) => (
+                      <span key={idx} className="border border-gray-300 text-gray-700 px-3 py-1 rounded-full text-sm">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Interests</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUser.interests.map((interest, idx) => (
+                      <span key={idx} className="border border-indigo-300 text-indigo-700 px-3 py-1 rounded-full text-sm">
+                        {interest}
+                      </span>
                   ))}
                 </div>
               </div>
@@ -2695,18 +2720,19 @@ const BusinessMatchingApp: React.FC = () => {
                         }
                       });
                     }}
-                    className="bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700"
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
                   >
-                    このユーザーを退会者として削除
+                    Delete User
                   </button>
                 </div>
               )}
             </div>
           </div>
+          </div>
         </div>
       )}
-      </div>
       <Footer />
+      </div>
     </div>
   );
 };

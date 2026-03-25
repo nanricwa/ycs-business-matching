@@ -11,7 +11,7 @@ export const Footer: React.FC = () => (
       href={PRIVACY_PATH}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-purple-600 hover:text-purple-800 hover:underline"
+      className="text-indigo-600 hover:text-indigo-500 hover:underline"
     >
       プライバシーポリシー
     </a>
@@ -20,7 +20,7 @@ export const Footer: React.FC = () => (
       href={TERMS_PATH}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-purple-600 hover:text-purple-800 hover:underline"
+      className="text-indigo-600 hover:text-indigo-500 hover:underline"
     >
       利用規約
     </a>
